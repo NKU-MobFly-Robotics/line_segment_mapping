@@ -1,19 +1,19 @@
-#include "line_segment_mapping/line_extractor.h"
+#include "line_segment_mapping/line_segment_extractor.h"
 
 namespace karto
 {
 //构造函数
-LineFeature::LineFeature()
+LineSegmentExtractor::LineSegmentExtractor()
 {
   loadParameters();
 }
 
 //析构函数
-LineFeature::~LineFeature()
+LineSegmentExtractor::~LineSegmentExtractor()
 {
 }
 
-void LineFeature::loadParameters()
+void LineSegmentExtractor::loadParameters()
 {
   params_.least_thresh = 0.03;
   params_.min_line_length = 0.6;
@@ -24,56 +24,81 @@ void LineFeature::loadParameters()
 }
 
 // set paramters
-void LineFeature::set_least_threshold(double least_thresh)
+void LineSegmentExtractor::set_least_threshold(double least_thresh)
 {
   params_.least_thresh = least_thresh;
 }
 
-void LineFeature::set_min_line_length(double min_line_length)
+void LineSegmentExtractor::set_min_line_length(double min_line_length)
 {
   params_.min_line_length = min_line_length;
 }
 
-void LineFeature::set_predict_distance(double predict_distance)
+void LineSegmentExtractor::set_predict_distance(double predict_distance)
 {
   params_.predict_distance = predict_distance;
 }
 
-void LineFeature::set_min_line_points(unsigned int min_line_points)
+void LineSegmentExtractor::set_min_line_points(unsigned int min_line_points)
 {
   params_.min_line_points = min_line_points;
 }
 
-void LineFeature::set_seed_line_points(unsigned int seed_line_points)
+void LineSegmentExtractor::set_seed_line_points(unsigned int seed_line_points)
 {
   params_.seed_line_points = seed_line_points;
 }
 
-void LineFeature::set_max_line_gap(double max_line_gap)
+void LineSegmentExtractor::set_max_line_gap(double max_line_gap)
 {
   params_.max_line_gap = max_line_gap;
 }
 
-//设定激光点信息
-void LineFeature::setRangeData(const std::vector<double>& ranges, const std::vector<double>& xs,
-                               const std::vector<double>& ys, int size)
+void LineSegmentExtractor::rangeFiltering(const RangeReadingsVector& point_readings,
+                                          const LaserRangeFinder* laser_range_finder, PointReadings* data)
 {
-  range_data_.ranges = ranges;
-  range_data_.xs = xs;
-  range_data_.ys = ys;
-  m_NumberOfRangeReadings = size;
+  double range_thr = laser_range_finder->GetRangeThreshold();
+  double angle_min = laser_range_finder->GetMinimumAngle();
+  double range_min = laser_range_finder->GetMinimumRange();
+  double angle_increment = laser_range_finder->GetAngularResolution();
+
+  // compute point readings
+  data->points.clear();
+  data->ranges.clear();
+  data->angles.clear();
+  data->num = 0;
+
+  for (int i = 0; i < laser_range_finder->GetNumberOfRangeReadings(); i++)
+  {
+    double range = point_readings[i];
+    double angle = angle_min + i * angle_increment;
+
+    if (!math::InRange(range, range_min, range_thr))
+      continue;
+
+    Vector2<double> point;
+    point.SetX(range * cos(angle));
+    point.SetY(range * sin(angle));
+
+    data->points.push_back(point);
+    data->ranges.push_back(range);
+    data->angles.push_back(angle);
+    data->num++;
+  }
 }
 
-void LineFeature::setCosSinData(const std::vector<double>& bearings, const std::vector<double>& cos_value,
-                                const std::vector<double>& sin_value, const std::vector<int>& indices)
+void LineSegmentExtractor::extractLines(const RangeReadingsVector& point_readings,
+                                        const LaserRangeFinder* laser_range_finder, LineSegmentVector* line_segments)
 {
-  cs_data_.bearings = bearings;
-  cs_data_.cos_value = cos_value;
-  cs_data_.sin_value = sin_value;
+  PointReadings data;
+
+  rangeFiltering(point_readings, laser_range_finder, &data);
+
+  process(&data, line_segments);
 }
 
 //一次最小二乘求解直线参数
-least LineFeature::leastsquare(int start, int end, int firstfit)
+least LineSegmentExtractor::leastsquare(int start, int end, int firstfit, const PointReadings* data)
 {
   double w1 = 0, w2 = 0, w3 = 0;
   least temp;
@@ -89,30 +114,30 @@ least LineFeature::leastsquare(int start, int end, int firstfit)
     int k = 0;
     for (k = start; k <= end; k++)
     {
-      mid1 += range_data_.xs[k];
-      mid2 += range_data_.ys[k];
-      mid3 += range_data_.xs[k] * range_data_.xs[k];
-      mid4 += range_data_.ys[k] * range_data_.ys[k];
-      mid5 += range_data_.xs[k] * range_data_.ys[k];
+      mid1 += data->points[k].GetX();
+      mid2 += data->points[k].GetY();
+      mid3 += data->points[k].GetX() * data->points[k].GetX();
+      mid4 += data->points[k].GetY() * data->points[k].GetY();
+      mid5 += data->points[k].GetX() * data->points[k].GetY();
     }
   }
   else
   {
     if (firstfit == 2)
     {
-      mid1 += range_data_.xs[end];
-      mid2 += range_data_.ys[end];
-      mid3 += range_data_.xs[end] * range_data_.xs[end];
-      mid4 += range_data_.ys[end] * range_data_.ys[end];
-      mid5 += range_data_.xs[end] * range_data_.ys[end];
+      mid1 += data->points[end].GetX();
+      mid2 += data->points[end].GetY();
+      mid3 += data->points[end].GetX() * data->points[end].GetX();
+      mid4 += data->points[end].GetY() * data->points[end].GetY();
+      mid5 += data->points[end].GetX() * data->points[end].GetY();
     }
     else
     {
-      mid1 += range_data_.xs[start];
-      mid2 += range_data_.ys[start];
-      mid3 += range_data_.xs[start] * range_data_.xs[start];
-      mid4 += range_data_.ys[start] * range_data_.ys[start];
-      mid5 += range_data_.xs[start] * range_data_.ys[start];
+      mid1 += data->points[start].GetX();
+      mid2 += data->points[start].GetY();
+      mid3 += data->points[start].GetX() * data->points[start].GetX();
+      mid4 += data->points[start].GetY() * data->points[start].GetY();
+      mid5 += data->points[start].GetX() * data->points[start].GetY();
     }
   }
   w1 = n * mid5 - mid1 * mid2;
@@ -139,7 +164,7 @@ least LineFeature::leastsquare(int start, int end, int firstfit)
 }
 
 //判断下一个点是否在直线上，是，返回true；否则，返回false。
-bool LineFeature::detectline(const int start, const int num)
+bool LineSegmentExtractor::detectline(const int start, const int num, const PointReadings* data)
 {
   bool flag = false;
   //定义点到直线的垂直误差
@@ -158,7 +183,7 @@ bool LineFeature::detectline(const int start, const int num)
   for (k = start; k < start + num; k++)
   {
     //到直线的垂直距离
-    error1 = fabs(((m_least.a) * range_data_.xs[k] + (m_least.b) * range_data_.ys[k] + m_least.c)) /
+    error1 = fabs(((m_least.a) * data->points[k].GetX() + (m_least.b) * data->points[k].GetY() + m_least.c)) /
              sqrt(math::Square(m_least.a) + math::Square(m_least.b));
 
     if (error1 > params_.least_thresh)
@@ -166,7 +191,7 @@ bool LineFeature::detectline(const int start, const int num)
       return false;
     }
 
-    theta = cs_data_.bearings[k];
+    theta = data->angles[k];
     if (fabs((fabs(theta) - KT_PI_2)) < 1e-05)
     {
       m_pn.SetX(0);
@@ -180,7 +205,7 @@ bool LineFeature::detectline(const int start, const int num)
     }
 
     //计算到预测点之间的误差
-    error2 = m_pn.Distance(Vector2<double>(range_data_.xs[k], range_data_.ys[k]));
+    error2 = m_pn.Distance(Vector2<double>(data->points[k].GetX(), data->points[k].GetY()));
     if (error2 > params_.predict_distance)  //与预测点之间的距离
     {
       return false;
@@ -189,8 +214,8 @@ bool LineFeature::detectline(const int start, const int num)
     //计算连续两点之间的距离
     if (k != start + num - 1)
     {
-      dist = Vector2<double>(range_data_.xs[k], range_data_.ys[k])
-                 .Distance(Vector2<double>(range_data_.xs[k + 1], range_data_.ys[k + 1]));
+      dist = Vector2<double>(data->points[k].GetX(), data->points[k].GetY())
+                 .Distance(Vector2<double>(data->points[k + 1].GetX(), data->points[k + 1].GetY()));
       if (dist > params_.max_line_gap)
       {
         return false;
@@ -202,7 +227,7 @@ bool LineFeature::detectline(const int start, const int num)
 }
 
 //检测完整的直线段
-int LineFeature::detectfulline(const int start)
+int LineSegmentExtractor::detectfulline(int start, const PointReadings* data)
 {
   line m_temp;
 
@@ -227,14 +252,16 @@ int LineFeature::detectfulline(const int start)
   //向前生长
   while (flag2)
   {
-    if (n2 <= (m_NumberOfRangeReadings - 1))
+    if (n2 <= (data->num - 1))
     {
-      if (Vector2<double>(range_data_.xs[n2], range_data_.ys[n2])
-              .Distance(Vector2<double>(range_data_.xs[n2 - 1], range_data_.ys[n2 - 1])) < params_.max_line_gap)
+      if (Vector2<double>(data->points[n2].GetX(), data->points[n2].GetY())
+              .Distance(Vector2<double>(data->points[n2 - 1].GetX(), data->points[n2 - 1].GetY())) <
+          params_.max_line_gap)
       {
-        if ((fabs(a * range_data_.xs[n2] + b * range_data_.ys[n2] + c) / (sqrt(a * a + b * b))) < params_.least_thresh)
+        if ((fabs(a * data->points[n2].GetX() + b * data->points[n2].GetY() + c) / (sqrt(a * a + b * b))) <
+            params_.least_thresh)
         {
-          m_least = leastsquare(start, n2, 2);
+          m_least = leastsquare(start, n2, 2, data);
 
           n2 = n2 + 1;
           a = m_least.a;
@@ -264,12 +291,14 @@ int LineFeature::detectfulline(const int start)
   {
     if (n1 >= 0)
     {
-      if (Vector2<double>(range_data_.xs[n1], range_data_.ys[n1])
-              .Distance(Vector2<double>(range_data_.xs[n1 + 1], range_data_.ys[n1 + 1])) < params_.max_line_gap)
+      if (Vector2<double>(data->points[n1].GetX(), data->points[n1].GetY())
+              .Distance(Vector2<double>(data->points[n1 + 1].GetX(), data->points[n1 + 1].GetY())) <
+          params_.max_line_gap)
       {
-        if ((fabs(a * range_data_.xs[n1] + b * range_data_.ys[n1] + c) / (sqrt(a * a + b * b))) < params_.least_thresh)
+        if ((fabs(a * data->points[n1].GetX() + b * data->points[n1].GetY() + c) / (sqrt(a * a + b * b))) <
+            params_.least_thresh)
         {
-          m_least = leastsquare(n1, n2, 3);
+          m_least = leastsquare(n1, n2, 3, data);
 
           n1 = n1 - 1;
           a = m_least.a;
@@ -296,14 +325,14 @@ int LineFeature::detectfulline(const int start)
   m_temp.left = n1;
   m_temp.right = n2;
   //此处是统一再做一次拟合，可能以一定步长进行拟合搜索的时候，需要这样完整的拟合过程，此时不需要
-  m_result = leastsquare(n1, n2, 1);
+  m_result = leastsquare(n1, n2, 1, data);
   m_temp.a = m_result.a;
   m_temp.b = m_result.b;
   m_temp.c = m_result.c;
 
   if ((n2 - n1 + 1) >= params_.min_line_points)
   {
-    if (delete_short_line(n1, n2))
+    if (delete_short_line(n1, n2, data))
     {
       m_line.push_back(m_temp);
     }
@@ -315,7 +344,7 @@ int LineFeature::detectfulline(const int start)
   }
 }
 
-void LineFeature::cleanline()
+void LineSegmentExtractor::cleanline(const PointReadings* data)
 {
   if (m_line.size() < 2)
   {
@@ -355,7 +384,7 @@ void LineFeature::cleanline()
         {
           int _left = math::Minimum(m_line[p].left, m_line[q].left);
 
-          least m_temp = leastsquare(_left, m_line[q].right, 1);
+          least m_temp = leastsquare(_left, m_line[q].right, 1, data);
 
           m_line[p].a = m_temp.a;
           m_line[p].b = m_temp.b;
@@ -384,9 +413,11 @@ void LineFeature::cleanline()
       for (m_iter = n; m_iter <= m; m_iter++)
       {
         line_temp = m_iter;
-        error1 = fabs(((m_line[p].a) * range_data_.xs[m_iter] + (m_line[p].b) * range_data_.ys[m_iter] + m_line[p].c)) /
+        error1 = fabs(((m_line[p].a) * data->points[m_iter].GetX() + (m_line[p].b) * data->points[m_iter].GetY() +
+                       m_line[p].c)) /
                  sqrt(math::Square(m_line[p].a) + math::Square(m_line[p].b));
-        error2 = fabs(((m_line[q].a) * range_data_.xs[m_iter] + (m_line[q].b) * range_data_.ys[m_iter] + m_line[q].c)) /
+        error2 = fabs(((m_line[q].a) * data->points[m_iter].GetX() + (m_line[q].b) * data->points[m_iter].GetY() +
+                       m_line[q].c)) /
                  sqrt(math::Square(m_line[q].a) + math::Square(m_line[q].b));
         if (error1 > error2)
         {
@@ -394,13 +425,13 @@ void LineFeature::cleanline()
         }
       }
       m_line[p].right = m_iter - 1;
-      temp_least = leastsquare(m_line[p].left, m_line[p].right, 1);
+      temp_least = leastsquare(m_line[p].left, m_line[p].right, 1, data);
       m_line[p].a = temp_least.a;
       m_line[p].b = temp_least.b;
       m_line[p].c = temp_least.c;
 
       m_line[q].left = m_iter;
-      temp_least = leastsquare(m_line[q].left, m_line[q].right, 1);
+      temp_least = leastsquare(m_line[q].left, m_line[q].right, 1, data);
       m_line[q].a = temp_least.a;
       m_line[q].b = temp_least.b;
       m_line[q].c = temp_least.c;
@@ -408,11 +439,11 @@ void LineFeature::cleanline()
   }
 }
 
-bool LineFeature::delete_short_line(int n1, int n2)
+bool LineSegmentExtractor::delete_short_line(int n1, int n2, const PointReadings* data)
 {
   //删除一些长度小于0.6m的线段，这个可以视具体情况而定
-  if (Vector2<double>(range_data_.xs[n1], range_data_.ys[n1])
-          .Distance(Vector2<double>(range_data_.xs[n2], range_data_.ys[n2])) < params_.min_line_length)
+  if (Vector2<double>(data->points[n1].GetX(), data->points[n1].GetY())
+          .Distance(Vector2<double>(data->points[n2].GetX(), data->points[n2].GetY())) < params_.min_line_length)
   {
     return false;
   }
@@ -422,78 +453,7 @@ bool LineFeature::delete_short_line(int n1, int n2)
   }
 }
 
-bool LineFeature::is_valid_endpoint(int endPointIndex, int neighbourEndPointIndex, int frontLineIndex,
-                                    int backLineIndex)
-{
-  // For UTM-30LX, the range of bearing is -270 to 270 degrees
-  if (!math::InRange(cs_data_.bearings[endPointIndex], -KT_PI_2, KT_PI_2))
-  // if (!math::InRange(endPointIndex, static_cast<int>(math::Round(1081 * 0.1)), static_cast<int>(math::Round(1081 *
-  // 0.9))))
-  {
-    return false;
-  }
-
-  // 如果最小二乘拟合的直线和激光射线接近平行，则远处的那个端点特征不可靠
-  double indexToNeighbourIndex =
-      Vector2<double>(range_data_.xs[endPointIndex], range_data_.ys[endPointIndex])
-          .Distance(Vector2<double>(range_data_.xs[neighbourEndPointIndex], range_data_.ys[neighbourEndPointIndex]));
-  double originToIndex =
-      sqrt(math::Square(range_data_.xs[endPointIndex]) + math::Square(range_data_.ys[endPointIndex]));
-  double originToNeighbourIndex =
-      sqrt(math::Square(range_data_.xs[neighbourEndPointIndex]) + math::Square(range_data_.ys[neighbourEndPointIndex]));
-
-  double cosIndex =
-      (math::Square(originToIndex) + math::Square(indexToNeighbourIndex) - math::Square(originToNeighbourIndex)) /
-      (2 * originToIndex * indexToNeighbourIndex);
-  double angleForIndex = acos(cosIndex);
-
-  if (angleForIndex < math::DegreesToRadians(20))
-  {
-    return false;
-  }
-
-  // 判断遮挡的问题
-  if (endPointIndex < neighbourEndPointIndex)
-  {
-    if (frontLineIndex == -1)
-    {
-      return true;
-    }
-    int frontRightIndex = m_line[frontLineIndex].right;
-    if (endPointIndex - frontRightIndex == 1)
-    {
-      if (fabs(range_data_.ranges[endPointIndex] - range_data_.ranges[frontRightIndex]) > 0.10)
-      {
-        if (range_data_.ranges[endPointIndex] > range_data_.ranges[frontRightIndex])
-        {
-          return false;
-        }
-      }
-    }
-  }
-  else
-  {
-    if (backLineIndex == static_cast<int>(m_line.size()))
-    {
-      return true;
-    }
-    int backLeftIndex = m_line[backLineIndex].left;
-    if (backLeftIndex - endPointIndex == 1)
-    {
-      if (fabs(range_data_.ranges[endPointIndex] - range_data_.ranges[backLeftIndex]) > 0.10)
-      {
-        if (range_data_.ranges[endPointIndex] > range_data_.ranges[backLeftIndex])
-        {
-          return false;
-        }
-      }
-    }
-  }
-
-  return true;
-}
-
-void LineFeature::is_sequential()
+void LineSegmentExtractor::is_sequential()
 {
   for (auto iter = m_line.begin(); iter != m_line.end() - 1; ++iter)
   {
@@ -510,10 +470,11 @@ void LineFeature::is_sequential()
   }
 }
 
-void LineFeature::generate(std::vector<LineSegment>& lineSegments, PointVectorDouble& points)
+void LineSegmentExtractor::generate(const PointReadings* data, LineSegmentVector* line_segments)
 {
   Vector2<double> endpoint1;
   Vector2<double> endpoint2;
+  line_segments->clear();
 
   int m = 0, n = 0;
   double k1 = 0, k2 = 0;
@@ -526,67 +487,62 @@ void LineFeature::generate(std::vector<LineSegment>& lineSegments, PointVectorDo
 
     if (m_line[i].b != 0)
     {
-      endpoint1.SetX((range_data_.xs[m] / m_line[i].a + range_data_.ys[m] - m_line[i].c) /
+      endpoint1.SetX((data->points[m].GetX() / m_line[i].a + data->points[m].GetY() - m_line[i].c) /
                      (m_line[i].a + 1.0 / (m_line[i].a)));
       endpoint1.SetY(m_line[i].a * endpoint1.GetX() + m_line[i].c);
     }
     else
     {
-      endpoint1.SetX(range_data_.ys[m]);
+      endpoint1.SetX(data->points[m].GetY());
       endpoint1.SetY(m_line[i].c / m_line[i].a);
     }
 
     if (m_line[i].b != 0)
     {
-      endpoint2.SetX((range_data_.xs[n] / m_line[i].a + range_data_.ys[n] - m_line[i].c) /
+      endpoint2.SetX((data->points[n].GetX() / m_line[i].a + data->points[n].GetY() - m_line[i].c) /
                      (m_line[i].a + 1.0 / (m_line[i].a)));
       endpoint2.SetY(m_line[i].a * endpoint2.GetX() + m_line[i].c);
     }
     else
     {
-      endpoint2.SetX(range_data_.ys[n]);
+      endpoint2.SetX(data->points[n].GetY());
       endpoint2.SetY(m_line[i].c / m_line[i].a);
     }
-
-    if (is_valid_endpoint(m, n, i - 1, i + 1))
-      points.push_back(endpoint1);
-    if (is_valid_endpoint(n, m, i - 1, i + 1))
-      points.push_back(endpoint2);
 
     LineSegment line(endpoint1, endpoint2, index);
 
     index += 1;
-    lineSegments.push_back(line);
+    line_segments->push_back(line);
   }
 }
 
 //识别主函数
-void LineFeature::extractLines(std::vector<LineSegment>& lineSegments, PointVectorDouble& points)
+void LineSegmentExtractor::process(const PointReadings* data, LineSegmentVector* line_segments)
 {
   int line_include = 0;
   m_line.clear();
 
-  if (m_NumberOfRangeReadings < params_.min_line_points)
+  if (data->num < params_.min_line_points)
   {
     return;
   }
 
   //附近特征点数目
-  for (unsigned int i = 0; i < (m_NumberOfRangeReadings - params_.min_line_points); i++)
+  for (unsigned int i = 0; i < (data->num - params_.min_line_points); i++)
   {
-    m_least = leastsquare(i, i + params_.seed_line_points - 1, 1);
+    m_least = leastsquare(i, i + params_.seed_line_points - 1, 1, data);
     // std::cout << m_least.a << " " << m_least.b << " " << m_least.c << std::endl;
-    if (detectline(i, params_.seed_line_points))
+    if (detectline(i, params_.seed_line_points, data))
     {
-      line_include = detectfulline(i);
+      line_include = detectfulline(i, data);
       i = line_include;
     }
   }
-  cleanline();
+  cleanline(data);
 
   for (std::vector<line>::iterator iter = m_line.begin(); iter != m_line.end();)
   {
-    if (!delete_short_line(iter->left, iter->right))
+    if (!delete_short_line(iter->left, iter->right, data))
     {
       iter = m_line.erase(iter);
     }
@@ -598,7 +554,7 @@ void LineFeature::extractLines(std::vector<LineSegment>& lineSegments, PointVect
 
   // std::cout << m_line.size() << std::endl;
   // is_sequential();
-  generate(lineSegments, points);
+  generate(data, line_segments);
 }
 
 }  // namespace karto
