@@ -36,6 +36,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include "nav_msgs/GetMap.h"
 
+#include "line_segment_mapping/line_segment_extractor.h"
 #include "line_segment_mapping/line_segment_mapper.h"
 #include "line_segment_mapping/g2o_solver.h"
 
@@ -96,6 +97,7 @@ private:
 
   // Karto bookkeeping
   boost::shared_ptr<karto::LineSegmentMapper> mapper_ptr_;
+  boost::shared_ptr<karto::LineSegmentExtractor> extractor_ptr_;
   karto::Dataset* dataset_;
 
   G2oSolver* solver_;
@@ -164,6 +166,7 @@ SlamKarto::SlamKarto() : got_map_(false), laser_count_(0), transform_thread_(NUL
 
   // Initialize Karto structures
   mapper_ptr_ = boost::shared_ptr<karto::LineSegmentMapper>(new karto::LineSegmentMapper());
+  extractor_ptr_ = boost::shared_ptr<karto::LineSegmentExtractor>(new karto::LineSegmentExtractor());
   dataset_ = new karto::Dataset();
 
   // Setting General Parameters from the Parameter Server
@@ -599,7 +602,11 @@ bool SlamKarto::addScan(karto::LaserRangeFinder* laser, const sensor_msgs::Laser
   }
 
   // create localized range scan
-  karto::LocalizedRangeScanWithLines* range_scan = new karto::LocalizedRangeScanWithLines(laser->GetName(), readings);
+  karto::LineSegmentVector line_segments;
+  extractor_ptr_->extractLines(readings, laser, &line_segments);
+
+  karto::LocalizedRangeScanWithLines* range_scan =
+      new karto::LocalizedRangeScanWithLines(laser->GetName(), readings, line_segments);
   range_scan->SetTime(scan->header.stamp.toSec());
   range_scan->SetOdometricPose(karto_pose);
   range_scan->SetCorrectedPose(karto_pose);

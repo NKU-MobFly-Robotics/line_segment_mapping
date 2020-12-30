@@ -2,64 +2,6 @@
 
 namespace karto
 {
-void LocalizedRangeScanWithLines::SetLocalPointReadings()
-{
-  LaserRangeFinder* pLaserRangeFinder = GetLaserRangeFinder();
-
-  if (pLaserRangeFinder != NULL)
-  {
-    kt_double rangeThreshold = pLaserRangeFinder->GetRangeThreshold();
-    kt_double minimumAngle = pLaserRangeFinder->GetMinimumAngle();
-    kt_double angularResolution = pLaserRangeFinder->GetAngularResolution();
-
-    // compute point readings
-    int beamNum = 0;
-    int numberOfRangeReadings = 0;
-    std::vector<double> xs;
-    std::vector<double> ys;
-    std::vector<double> ranges;
-    std::vector<double> bearings;
-    std::vector<double> cosValue;
-    std::vector<double> sinValue;
-    std::vector<int> indices;
-
-    for (int i = 0; i < pLaserRangeFinder->GetNumberOfRangeReadings(); i++, beamNum++)
-    {
-      kt_double rangeReading = GetRangeReadings()[i];
-      kt_double angle = minimumAngle + beamNum * angularResolution;
-
-      if (!math::InRange(rangeReading, pLaserRangeFinder->GetMinimumRange(), rangeThreshold))
-      {
-        Vector2<kt_double> point;
-        point.SetX(rangeReading * cos(angle));
-        point.SetY(rangeReading * sin(angle));
-
-        m_UnfilteredLocalPointReadings.push_back(point);
-        continue;
-      }
-
-      Vector2<kt_double> point;
-      point.SetX(rangeReading * cos(angle));
-      point.SetY(rangeReading * sin(angle));
-
-      m_UnfilteredLocalPointReadings.push_back(point);
-      m_LocalPointReadings.push_back(point);
-
-      xs.push_back(rangeReading * cos(angle));
-      ys.push_back(rangeReading * sin(angle));
-      ranges.push_back(rangeReading);
-      bearings.push_back(angle);
-      cosValue.push_back(cos(angle));
-      sinValue.push_back(sin(angle));
-      indices.push_back(numberOfRangeReadings);
-      numberOfRangeReadings++;
-    }
-    // 在给定的测距范围内的激光数据
-    m_pLineFeature->setRangeData(ranges, xs, ys, numberOfRangeReadings);
-    m_pLineFeature->setCosSinData(bearings, cosValue, sinValue, indices);
-  }
-}
-
 void LocalizedRangeScanWithLines::SetGlobalLineSegments()
 {
   Pose2 scanPose = GetSensorPose();
@@ -80,20 +22,9 @@ void LocalizedRangeScanWithLines::SetGlobalLineSegments()
   }
 }
 
-void LocalizedRangeScanWithLines::SetGlobalReliablePoints()
-{
-  Pose2 scanPose = GetSensorPose();
-  double cosine = cos(scanPose.GetHeading());
-  double sine = sin(scanPose.GetHeading());
-  m_GlobalReliablePoints.clear();
-  for (auto iter = m_LocalReliablePoints.begin(); iter != m_LocalReliablePoints.end(); ++iter)
-  {
-    Vector2<double> point;
-    point.SetX(iter->GetX() * cosine - iter->GetY() * sine + scanPose.GetX());
-    point.SetY(iter->GetX() * sine + iter->GetY() * cosine + scanPose.GetY());
-    m_GlobalReliablePoints.push_back(point);
-  }
-}
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
 
 bool LineSegmentMap::NaiveMerge(LocalizedRangeScanWithLines* pScan, const LocalizedRangeScanWithLinesVector& rScans)
 {

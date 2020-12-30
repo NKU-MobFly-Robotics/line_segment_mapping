@@ -2,7 +2,7 @@
 #define LINE_SEGMENT_MAPPING_LINE_SEGMENT_MAP_H
 
 #include "open_karto/Karto.h"
-#include "line_segment_mapping/line_extractor.h"
+#include "line_segment_mapping/line_segment_feature.h"
 
 namespace karto
 {
@@ -12,14 +12,10 @@ public:
   /**
    * Constructs a range scan from the given range finder with the given readings
    */
-  LocalizedRangeScanWithLines(const Name& rSensorName, const RangeReadingsVector& rReadings)
-    : LocalizedRangeScan(rSensorName, rReadings)
+  LocalizedRangeScanWithLines(const Name& rSensorName, const RangeReadingsVector& rReadings,
+                              const std::vector<LineSegment>& rLineSegments)
+    : LocalizedRangeScan(rSensorName, rReadings), m_LocalLineSegments(rLineSegments)
   {
-    m_pLineFeature = new LineFeature();
-
-    SetLocalPointReadings();
-
-    m_pLineFeature->extractLines(m_LocalLineSegments, m_LocalReliablePoints);
   }
 
   /**
@@ -27,26 +23,9 @@ public:
    */
   virtual ~LocalizedRangeScanWithLines()
   {
-    if (m_pLineFeature)
-      delete m_pLineFeature;
   }
 
 public:
-  /**
-   * Get point readings in local coordinates
-   */
-  const PointVectorDouble& GetLocalPointReadings(kt_bool wantFiltered = false) const
-  {
-    if (wantFiltered == true)
-    {
-      return m_LocalPointReadings;
-    }
-    else
-    {
-      return m_UnfilteredLocalPointReadings;
-    }
-  }
-
   /**
    * Get line segments in local coordinates
    */
@@ -66,61 +45,17 @@ public:
     return m_GlobalLineSegments;
   }
 
-  /**
-   * Get reliable points in local coordinates
-   */
-  const PointVectorDouble& GetLocalReliablePoints() const
-  {
-    return m_LocalReliablePoints;
-  }
-
-  /**
-   * Get reliable points in global coordinates
-   */
-  const PointVectorDouble& GetGlobalReliablePoints()
-  {
-    // transform reliable points from local coordinates to global coordinates
-    SetGlobalReliablePoints();
-
-    return m_GlobalReliablePoints;
-  }
-
 private:
-  /**
-   * Transform the range readings to point readings in the local coordinates
-   */
-  void SetLocalPointReadings();
-
   /**
    * Transform line segments from local coordinates to global cooridnate
    */
   void SetGlobalLineSegments();
-
-  /**
-   * Transform line segments from local coordinates to global cooridnate
-   */
-  void SetGlobalReliablePoints();
 
 private:
   LocalizedRangeScanWithLines(const LocalizedRangeScanWithLines&);
   const LocalizedRangeScanWithLines& operator=(const LocalizedRangeScanWithLines&);
 
 private:
-  /**
-   * Vector of point readings in local coordinates
-   */
-  PointVectorDouble m_LocalPointReadings;
-
-  /**
-   * Vector of unfiltered point readings in local coordinates
-   */
-  PointVectorDouble m_UnfilteredLocalPointReadings;
-
-  /**
-   * Line segment feature extractor
-   */
-  LineFeature* m_pLineFeature;
-
   /**
    * Line segments represented in local coordinates
    */
@@ -130,18 +65,7 @@ private:
    * Line segments represented in global coordinates
    */
   LineSegmentVector m_GlobalLineSegments;
-
-  /**
-   * Reliable points represented in local coordinates
-   */
-  PointVectorDouble m_LocalReliablePoints;
-
-  /**
-   * Reliable points represented in global coordinates
-   */
-  PointVectorDouble m_GlobalReliablePoints;
-
-};  // LocalizedRangeScanWithLines
+};
 
 typedef std::vector<LocalizedRangeScanWithLines*> LocalizedRangeScanWithLinesVector;
 
@@ -227,7 +151,7 @@ private:
   int m_ScanSize;
   int m_LineSegmentClustersIndex;  // 记录特征类别的索引值
   bool m_FirstScan;
-};  // LineSegmentMap
+};
 
 }  // namespace karto
 
