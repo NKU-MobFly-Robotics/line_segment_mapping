@@ -23,7 +23,7 @@ public:
     m_DirectionVector = m_EndPoint - m_StartPoint;
     assert(!std::isnan(m_DirectionVector.GetX()) && !std::isnan(m_DirectionVector.GetY()));  // 排除NaN值的情况
 
-    m_Length = sqrt(m_DirectionVector.Length());
+    m_Length = m_DirectionVector.Length();
     assert(m_Length >= KT_TOLERANCE);
 
     m_Heading = atan2(m_DirectionVector.GetY(), m_DirectionVector.GetX());
