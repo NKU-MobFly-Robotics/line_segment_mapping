@@ -1,6 +1,7 @@
 #ifndef LINE_SEGMENT_MAPPING_LINE_SEGMENT_FEATURE_H
 #define LINE_SEGMENT_MAPPING_LINE_SEGMENT_FEATURE_H
 
+#include <boost/shared_ptr.hpp>
 #include "open_karto/Karto.h"
 
 namespace karto
@@ -9,9 +10,6 @@ class LineSegment
 {
 public:
   LineSegment()
-  {
-  }
-  ~LineSegment()
   {
   }
 
@@ -40,67 +38,94 @@ public:
     m_Phi = atan2(y, x);
 
     m_Index = index;
+    m_pScan = NULL;
+  }
+
+  virtual ~LineSegment()
+  {
   }
 
 public:
-  inline const Vector2<double>& GetStartPoint() const
+  const Vector2<double>& GetStartPoint() const
   {
     return m_StartPoint;
   }
 
-  inline const Vector2<double>& GetEndPoint() const
+  const Vector2<double>& GetEndPoint() const
   {
     return m_EndPoint;
   }
 
-  inline const Vector2<double>& GetBarycenter() const
+  const Vector2<double>& GetBarycenter() const
   {
     return m_Barycenter;
   }
 
-  inline const Vector2<double>& GetDirectionVector() const
+  const Vector2<double>& GetDirectionVector() const
   {
     return m_DirectionVector;
   }
 
-  inline const double& GetHeading() const
+  const double& GetHeading() const
   {
     return m_Heading;
   }
 
-  inline const double& GetLength() const
+  const double& GetLength() const
   {
     return m_Length;
   }
 
-  inline const int& GetUpdateTimes() const
+  const int& GetUpdateTimes() const
   {
     return m_UpdateTimes;
   }
 
-  inline void SetUpdateTimes(int updateTimes)
+  void SetUpdateTimes(int updateTimes)
   {
     m_UpdateTimes = updateTimes;
   }
 
-  inline const double& GetRole() const
+  const double& GetRole() const
   {
     return m_Role;
   }
 
-  inline const double& GetPhi() const
+  const double& GetPhi() const
   {
     return m_Phi;
   }
 
-  inline const int& GetIndex() const
+  const int& GetIndex() const
   {
     return m_Index;
   }
 
-  inline void SetIndex(int index)
+  void SetIndex(int index)
   {
     m_Index = index;
+  }
+
+  void SetScan(LocalizedRangeScan* pScan)
+  {
+    m_pScan = pScan;
+  }
+
+  LineSegment GetGlobalLineSegments() const
+  {
+    Pose2 scanPose = m_pScan->GetSensorPose();
+    double cosine = cos(scanPose.GetHeading());
+    double sine = sin(scanPose.GetHeading());
+
+    Vector2<double> startPoint, endPoint;
+
+    startPoint.SetX(m_StartPoint.GetX() * cosine - m_StartPoint.GetY() * sine + scanPose.GetX());
+    startPoint.SetY(m_StartPoint.GetX() * sine + m_StartPoint.GetY() * cosine + scanPose.GetY());
+    endPoint.SetX(m_EndPoint.GetX() * cosine - m_EndPoint.GetY() * sine + scanPose.GetX());
+    endPoint.SetY(m_EndPoint.GetX() * sine + m_EndPoint.GetY() * cosine + scanPose.GetY());
+
+    LineSegment lineSegment(startPoint, endPoint, m_Index);
+    return lineSegment;
   }
 
 private:
@@ -112,6 +137,8 @@ private:
   Vector2<double> m_Barycenter;       // 线段的中心点
   Vector2<double> m_DirectionVector;  // 单位方向向量
 
+  LocalizedRangeScan* m_pScan;  // 该线段关联的激光扫描
+
   int m_UpdateTimes;  // 线段被更新的次数，初始为1
   double m_Role;
   double m_Phi;
@@ -119,7 +146,10 @@ private:
 };
 
 typedef std::vector<LineSegment> LineSegmentVector;
-typedef std::map<int, LineSegment> LineSegmentMapContainer;
+typedef std::map<int, LineSegment> LineSegmentMap;
+typedef boost::shared_ptr<LineSegment> LineSegmentPtr;
+typedef std::vector<LineSegmentPtr> LineSegmentPtrVector;
+typedef std::map<int, LineSegmentPtrVector> LineSegmentPtrVectorMap;
 
 }  // namespace karto
 

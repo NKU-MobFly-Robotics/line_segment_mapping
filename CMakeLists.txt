@@ -41,7 +41,7 @@ include_directories(
 add_executable(${PROJECT_NAME}
   src/g2o_solver.cpp
   src/line_segment_extractor.cpp
-  src/line_segment_map.cpp
+  src/line_segment_map_manager.cpp
   src/line_segment_mapper.cpp
   src/slam_karto_g2o.cpp
 )

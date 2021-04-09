@@ -17,11 +17,8 @@
 /* Author: Brian Gerkey */
 
 /**
-
 @mainpage karto_gmapping
-
 @htmlinclude manifest.html
-
 */
 
 #include "ros/ros.h"
@@ -548,7 +545,7 @@ bool SlamKarto::updateMap()
 
 void SlamKarto::publishLineSegmentMapVisualization(visualization_msgs::Marker& line_segment_map_marker)
 {
-  karto::LineSegmentMapContainer line_segment_map = mapper_ptr_->GetLineSegmentMap();
+  karto::LineSegmentMap line_segment_map = mapper_ptr_->GetLineSegmentMapManager()->GetLineSegmentMap();
   line_segment_map_marker.ns = "karto";
   line_segment_map_marker.id = 0;
   line_segment_map_marker.type = visualization_msgs::Marker::LINE_LIST;
@@ -602,18 +599,20 @@ bool SlamKarto::addScan(karto::LaserRangeFinder* laser, const sensor_msgs::Laser
   }
 
   // create localized range scan
-  karto::LineSegmentVector line_segments;
-  extractor_ptr_->extractLines(readings, laser, &line_segments);
+  karto::LineSegmentPtrVector line_segments;
+  extractor_ptr_->extractLines(readings, laser, line_segments);
 
-  karto::LocalizedRangeScanWithLines* range_scan =
-      new karto::LocalizedRangeScanWithLines(laser->GetName(), readings, line_segments);
+  karto::LocalizedRangeScan* range_scan = new karto::LocalizedRangeScan(laser->GetName(), readings);
   range_scan->SetTime(scan->header.stamp.toSec());
   range_scan->SetOdometricPose(karto_pose);
   range_scan->SetCorrectedPose(karto_pose);
 
+  for (auto iter = line_segments.begin(); iter != line_segments.end(); ++iter)
+    iter->get()->SetScan(range_scan);
+
   // Add the localized range scan to the mapper
   bool processed;
-  if ((processed = mapper_ptr_->Process(range_scan)))
+  if ((processed = mapper_ptr_->Process(range_scan, line_segments)))
   {
     karto::Pose2 corrected_pose = range_scan->GetCorrectedPose();
     tf::Transform corrected_pose_tf(tf::createQuaternionFromRPY(0, 0, corrected_pose.GetHeading()),
