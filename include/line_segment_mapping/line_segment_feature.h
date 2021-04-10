@@ -6,6 +6,11 @@
 
 namespace karto
 {
+inline double point_to_line_distance(double A, double B, double C, double x, double y)
+{
+  return fabs(A * x + B * y + C) / sqrt(A * A + B * B);
+}
+
 class LineSegment
 {
 public:
@@ -13,7 +18,7 @@ public:
   {
   }
 
-  LineSegment(const Vector2<double>& startPoint, const Vector2<double>& endPoint, int index = 0)
+  LineSegment(const Vector2<double>& startPoint, const Vector2<double>& endPoint)
   {
     m_StartPoint = startPoint;
     m_EndPoint = endPoint;
@@ -31,18 +36,18 @@ public:
     double A = m_EndPoint.GetY() - m_StartPoint.GetY();
     double B = m_StartPoint.GetX() - m_EndPoint.GetX();
     double C = m_EndPoint.GetX() * m_StartPoint.GetY() - m_StartPoint.GetX() * m_EndPoint.GetY();
-    m_Role = fabs(C) / sqrt(math::Square(A) + math::Square(B));
+    m_Role = fabs(C) / sqrt(A * A + B * B);
 
-    double x = -A * C / (math::Square(A) + math::Square(B));
-    double y = -B * C / (math::Square(A) + math::Square(B));
+    double x = -A * C / (A * A + B * B);
+    double y = -B * C / (A * A + B * B);
     m_Phi = atan2(y, x);
 
-    m_Index = index;
     m_pScan = NULL;
   }
 
   virtual ~LineSegment()
   {
+    m_pScan = NULL;
   }
 
 public:
@@ -96,16 +101,6 @@ public:
     return m_Phi;
   }
 
-  const int& GetIndex() const
-  {
-    return m_Index;
-  }
-
-  void SetIndex(int index)
-  {
-    m_Index = index;
-  }
-
   void SetScan(LocalizedRangeScan* pScan)
   {
     m_pScan = pScan;
@@ -124,7 +119,7 @@ public:
     endPoint.SetX(m_EndPoint.GetX() * cosine - m_EndPoint.GetY() * sine + scanPose.GetX());
     endPoint.SetY(m_EndPoint.GetX() * sine + m_EndPoint.GetY() * cosine + scanPose.GetY());
 
-    LineSegment lineSegment(startPoint, endPoint, m_Index);
+    LineSegment lineSegment(startPoint, endPoint);
     return lineSegment;
   }
 
@@ -142,7 +137,6 @@ private:
   int m_UpdateTimes;  // 线段被更新的次数，初始为1
   double m_Role;
   double m_Phi;
-  int m_Index;
 };
 
 typedef std::vector<LineSegment> LineSegmentVector;

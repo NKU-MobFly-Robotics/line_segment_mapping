@@ -49,11 +49,6 @@ typedef struct least
   double c;
 } least;
 
-inline double point_to_line_distance(double A, double B, double C, double x, double y)
-{
-  return fabs(A * x + B * y + C) / sqrt(A * A + B * B);
-}
-
 class LineSegmentExtractor
 {
 public:

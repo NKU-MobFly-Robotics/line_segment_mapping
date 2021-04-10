@@ -280,10 +280,10 @@ bool LineSegmentMapManager::CalculateOverlap(const LineSegment& prevLineSegment,
     C = prevLineSegment.GetStartPoint().GetY() - A * prevLineSegment.GetStartPoint().GetX();
   }
 
-  double dist1 = fabs(A * currLineSegment.GetStartPoint().GetX() + B * currLineSegment.GetStartPoint().GetY() + C) /
-                 sqrt(A * A + B * B);
-  double dist2 = fabs(A * currLineSegment.GetEndPoint().GetX() + B * currLineSegment.GetEndPoint().GetY() + C) /
-                 sqrt(A * A + B * B);
+  double dist1 =
+      point_to_line_distance(A, B, C, currLineSegment.GetStartPoint().GetX(), currLineSegment.GetStartPoint().GetY());
+  double dist2 =
+      point_to_line_distance(A, B, C, currLineSegment.GetEndPoint().GetX(), currLineSegment.GetEndPoint().GetY());
   double dist = math::Maximum(dist1, dist2);
 
   if (dist > 0.10)
@@ -395,7 +395,7 @@ LineSegment LineSegmentMapManager::MergeLineSegments(const LineSegmentVector& rL
   }
   // 计算线段的单位方向向量
   double vectorLength = directionVector.Length();  // 归一化因子
-  assert(fabs(vectorLength) > KT_TOLERANCE);
+  assert(vectorLength > KT_TOLERANCE);
 
   double heading = atan2(directionVector.GetY(), directionVector.GetX());
   assert(math::InRange(heading, -KT_PI, KT_PI));

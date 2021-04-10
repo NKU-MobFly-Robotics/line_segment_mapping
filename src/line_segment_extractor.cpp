@@ -470,7 +470,6 @@ void LineSegmentExtractor::generate(const PointReadings& data, LineSegmentPtrVec
 
   int m = 0, n = 0;
   double k1 = 0, k2 = 0;
-  int index = 0;
   for (int i = 0; i < m_line.size(); i++)
   {
     m = m_line[i].left;
@@ -480,7 +479,7 @@ void LineSegmentExtractor::generate(const PointReadings& data, LineSegmentPtrVec
     if (m_line[i].b != 0)
     {
       endpoint1.SetX((data.points[m].GetX() / m_line[i].a + data.points[m].GetY() - m_line[i].c) /
-                     (m_line[i].a + 1.0 / (m_line[i].a)));
+                     (m_line[i].a + 1.0 / m_line[i].a));
       endpoint1.SetY(m_line[i].a * endpoint1.GetX() + m_line[i].c);
     }
     else
@@ -492,7 +491,7 @@ void LineSegmentExtractor::generate(const PointReadings& data, LineSegmentPtrVec
     if (m_line[i].b != 0)
     {
       endpoint2.SetX((data.points[n].GetX() / m_line[i].a + data.points[n].GetY() - m_line[i].c) /
-                     (m_line[i].a + 1.0 / (m_line[i].a)));
+                     (m_line[i].a + 1.0 / m_line[i].a));
       endpoint2.SetY(m_line[i].a * endpoint2.GetX() + m_line[i].c);
     }
     else
@@ -501,9 +500,7 @@ void LineSegmentExtractor::generate(const PointReadings& data, LineSegmentPtrVec
       endpoint2.SetY(m_line[i].c / m_line[i].a);
     }
 
-    LineSegmentPtr line = LineSegmentPtr(new LineSegment(endpoint1, endpoint2, index));
-
-    index += 1;
+    LineSegmentPtr line = LineSegmentPtr(new LineSegment(endpoint1, endpoint2));
     line_segments.push_back(line);
   }
 }
@@ -532,7 +529,7 @@ void LineSegmentExtractor::process(const PointReadings& data, LineSegmentPtrVect
   }
   cleanline(data);
 
-  for (std::vector<line>::iterator iter = m_line.begin(); iter != m_line.end();)
+  for (auto iter = m_line.begin(); iter != m_line.end();)
   {
     if (!delete_short_line(iter->left, iter->right, data))
     {
