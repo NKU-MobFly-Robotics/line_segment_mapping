@@ -44,12 +44,12 @@ public:
    */
   void GlobalMapAdjustment();
 
-  const LineSegmentMap& GetLineSegmentMap() const
+  const LineSegmentHashTable& GetLineSegmentMap() const
   {
     return m_LineSegmentMap;
   }
 
-  const LineSegmentPtrVectorMap& GetLineSegmentClusters() const
+  const LineSegmentPtrVectorHashTable& GetLineSegmentClusters() const
   {
     return m_LineSegmentClusters;
   }
@@ -76,12 +76,12 @@ private:
   bool updateCheck() const;
 
 private:
-  LineSegmentMap m_LineSegmentMap;  // Global line segment map, wherein each line segment is represented in the world
-                                    // coordinates
-  LineSegmentPtrVectorMap m_LineSegmentClusters;  // A hashtable used to record the line segment cluster and the
-                                                  // corresponding original line segments
-  std::vector<int> m_ClustersIndexArray;          // An array used to store the indices of the line segment cluster
-  int m_LineSegmentClustersIndex;                 // Index of the line segment cluster
+  LineSegmentHashTable m_LineSegmentMap;  // Global line segment map, wherein each line segment is represented in the
+                                          // world coordinates
+  LineSegmentPtrVectorHashTable m_LineSegmentClusters;  // A hashtable used to record the line segment cluster and the
+                                                        // corresponding original line segments
+  std::vector<int> m_ClustersIndexArray;  // An array used to store the indices of the line segment cluster
+  int m_LineSegmentClustersIndex;         // Index of the line segment cluster
 };
 
 }  // namespace karto

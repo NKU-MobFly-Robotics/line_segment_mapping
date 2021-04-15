@@ -500,8 +500,8 @@ void LineSegmentExtractor::generate(const PointReadings& data, LineSegmentPtrVec
       endpoint2.SetY(m_line[i].c / m_line[i].a);
     }
 
-    LineSegmentPtr line = LineSegmentPtr(new LineSegment(endpoint1, endpoint2));
-    line_segments.push_back(line);
+    LineSegmentPtr lineSegment = std::make_shared<LineSegment>(endpoint1, endpoint2);
+    line_segments.push_back(lineSegment);
   }
 }
 

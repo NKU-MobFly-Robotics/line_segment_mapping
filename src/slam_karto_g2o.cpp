@@ -545,7 +545,7 @@ bool SlamKarto::updateMap()
 
 void SlamKarto::publishLineSegmentMapVisualization(visualization_msgs::Marker& line_segment_map_marker)
 {
-  karto::LineSegmentMap line_segment_map = mapper_ptr_->GetLineSegmentMapManager()->GetLineSegmentMap();
+  karto::LineSegmentHashTable line_segment_map = mapper_ptr_->GetLineSegmentMapManager()->GetLineSegmentMap();
   line_segment_map_marker.ns = "karto";
   line_segment_map_marker.id = 0;
   line_segment_map_marker.type = visualization_msgs::Marker::LINE_LIST;

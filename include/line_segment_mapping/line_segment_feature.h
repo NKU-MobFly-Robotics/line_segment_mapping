@@ -1,7 +1,8 @@
 #ifndef LINE_SEGMENT_MAPPING_LINE_SEGMENT_FEATURE_H
 #define LINE_SEGMENT_MAPPING_LINE_SEGMENT_FEATURE_H
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
+#include <unordered_map>
 #include "open_karto/Karto.h"
 
 namespace karto
@@ -140,10 +141,10 @@ private:
 };
 
 typedef std::vector<LineSegment> LineSegmentVector;
-typedef std::map<int, LineSegment> LineSegmentMap;
-typedef boost::shared_ptr<LineSegment> LineSegmentPtr;
+typedef std::unordered_map<int, LineSegment> LineSegmentHashTable;
+typedef std::shared_ptr<LineSegment> LineSegmentPtr;
 typedef std::vector<LineSegmentPtr> LineSegmentPtrVector;
-typedef std::map<int, LineSegmentPtrVector> LineSegmentPtrVectorMap;
+typedef std::unordered_map<int, LineSegmentPtrVector> LineSegmentPtrVectorHashTable;
 
 }  // namespace karto
 
