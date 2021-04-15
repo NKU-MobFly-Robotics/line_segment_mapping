@@ -11,7 +11,7 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
   {
     for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
     {
-      LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+      LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
       m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, globalLineSegment));
 
       LineSegmentPtrVector lineSegmentCluster;
@@ -33,18 +33,17 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
       for (auto inner_iter = m_LineSegmentMap.begin(); inner_iter != m_LineSegmentMap.end(); ++inner_iter)
       {
         // Obtain the current line segments in world coordinates
-        LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+        LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
 
         if (CalculateOverlap(inner_iter->second, globalLineSegment))
         {
           LineSegmentVector candidates;
           candidates.push_back(globalLineSegment);
 
-          assert(m_LineSegmentClusters.find(inner_iter->first) != m_LineSegmentClusters.end());
-          LineSegmentPtrVector originalLineSegments = m_LineSegmentClusters.find(inner_iter->first)->second;
-          for (auto iterator = originalLineSegments.begin(); iterator != originalLineSegments.end(); ++iterator)
+          LineSegmentPtrVector* originalLineSegments = &m_LineSegmentClusters[inner_iter->first];
+          for (auto iterator = originalLineSegments->begin(); iterator != originalLineSegments->end(); ++iterator)
           {
-            LineSegment tmp = iterator->get()->GetGlobalLineSegments();
+            LineSegment tmp = (*iterator)->GetGlobalLineSegments();
             candidates.push_back(tmp);
           }
 
@@ -52,9 +51,7 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
           LineSegment updatedLine = MergeLineSegments(candidates);
           inner_iter->second = updatedLine;
 
-          auto objectCluster = m_LineSegmentClusters.find(inner_iter->first);
-          assert(objectCluster != m_LineSegmentClusters.end());
-          objectCluster->second.push_back(*iter);
+          originalLineSegments->push_back(*iter);
 
           remain[remainId] = false;
 
@@ -73,7 +70,7 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
     {
       if (remain[remainId])
       {
-        LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+        LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
         m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, globalLineSegment));
 
         LineSegmentPtrVector lineSegmentCluster;
@@ -88,7 +85,7 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
     }
   }
 
-  assert(updateCheck());
+  // assert(updateCheck());
 
   return doUpdate;
 }
@@ -106,7 +103,7 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
   {
     for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
     {
-      LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+      LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
 
       m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, globalLineSegment));
 
@@ -129,18 +126,17 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
     {
       for (auto inner_iter = m_LineSegmentMap.begin(); inner_iter != m_LineSegmentMap.end();)
       {
-        LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+        LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
         if (CalculateOverlap(inner_iter->second, globalLineSegment))
         {
           doUpdate = true;
           doMerge = true;
           remain[remainId] = false;
 
-          assert(m_LineSegmentClusters.find(inner_iter->first) != m_LineSegmentClusters.end());
-          LineSegmentPtrVector originalLineSegments = m_LineSegmentClusters.find(inner_iter->first)->second;
+          LineSegmentPtrVector originalLineSegments = m_LineSegmentClusters[inner_iter->first];
           for (auto iterator = originalLineSegments.begin(); iterator != originalLineSegments.end(); ++iterator)
           {
-            LineSegment tmp = iterator->get()->GetGlobalLineSegments();
+            LineSegment tmp = (*iterator)->GetGlobalLineSegments();
             candidates.push_back(tmp);
           }
 
@@ -169,20 +165,17 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
         LineSegment updatedLine = MergeLineSegments(candidates);
         m_LineSegmentMap[index] = updatedLine;
 
-        auto objectCluster = m_LineSegmentClusters.find(index);
-        assert(objectCluster != m_LineSegmentClusters.end());
+        LineSegmentPtrVector* objectCluster = &m_LineSegmentClusters[index];
 
         // Move the corresponding original line segments of the merged line segments to the new cluster
         for (auto index_iter = candidateIndex.begin(); index_iter != candidateIndex.end(); ++index_iter)
         {
-          auto candidateCluster = m_LineSegmentClusters.find(*index_iter);
-          assert(candidateCluster != m_LineSegmentClusters.end());
+          LineSegmentPtrVector* candidateCluster = &m_LineSegmentClusters[*index_iter];
 
-          objectCluster->second.insert(objectCluster->second.end(), candidateCluster->second.begin(),
-                                       candidateCluster->second.end());
-          candidateCluster->second.clear();
+          objectCluster->insert(objectCluster->end(), candidateCluster->begin(), candidateCluster->end());
+          candidateCluster->clear();
         }
-        objectCluster->second.push_back(*iter);
+        objectCluster->push_back(*iter);
 
         bool flag = false;
         for (auto index_iter = m_ClustersIndexArray.begin(); index_iter != m_ClustersIndexArray.end();)
@@ -221,7 +214,7 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
     {
       if (remain[remainId])
       {
-        LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+        LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
         m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, globalLineSegment));
 
         LineSegmentPtrVector lineSegmentCluster;
@@ -236,7 +229,7 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
     }
   }
 
-  assert(updateCheck());
+  // assert(updateCheck());
 
   return doUpdate;
 }
@@ -252,7 +245,7 @@ void LineSegmentMapManager::GlobalMapAdjustment()
   }
 
   std::cout << "Global map adjustment done." << std::endl;
-  assert(updateCheck());
+  // assert(updateCheck());
 }
 
 bool LineSegmentMapManager::CalculateOverlap(const LineSegment& prevLineSegment, const LineSegment& currLineSegment)
@@ -365,17 +358,16 @@ bool LineSegmentMapManager::CalculateOverlap(const LineSegment& prevLineSegment,
 
 void LineSegmentMapManager::MapAdjustment(int index)
 {
-  LineSegmentPtrVector lineSegmentCluster = m_LineSegmentClusters.find(index)->second;
+  LineSegmentPtrVector lineSegmentCluster = m_LineSegmentClusters[index];
   LineSegmentVector globalLineSegments;
 
   for (auto iter = lineSegmentCluster.begin(); iter != lineSegmentCluster.end(); ++iter)
   {
-    LineSegment globalLineSegment = iter->get()->GetGlobalLineSegments();
+    LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
     globalLineSegments.push_back(globalLineSegment);
   }
 
-  m_LineSegmentMap[m_LineSegmentClusters.find(index)->first] = MergeLineSegments(globalLineSegments);
-  ;
+  m_LineSegmentMap[index] = MergeLineSegments(globalLineSegments);
 }
 
 /**
@@ -452,11 +444,11 @@ LineSegment LineSegmentMapManager::MergeLineSegments(const LineSegmentVector& rL
   return lineSegment;
 }
 
-bool LineSegmentMapManager::updateCheck() const
+bool LineSegmentMapManager::updateCheck()
 {
   for (auto iter = m_LineSegmentMap.begin(); iter != m_LineSegmentMap.end(); ++iter)
   {
-    int updateNum = static_cast<int>(m_LineSegmentClusters.find(iter->first)->second.size());
+    int updateNum = static_cast<int>(m_LineSegmentClusters[iter->first].size());
     if (updateNum != iter->second.GetUpdateTimes())
     {
       return false;

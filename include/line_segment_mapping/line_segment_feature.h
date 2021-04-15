@@ -133,7 +133,7 @@ private:
   Vector2<double> m_Barycenter;       // 线段的中心点
   Vector2<double> m_DirectionVector;  // 单位方向向量
 
-  LocalizedRangeScan* m_pScan;  // 该线段关联的激光扫描
+  const LocalizedRangeScan* m_pScan;  // 该线段关联的激光扫描
 
   int m_UpdateTimes;  // 线段被更新的次数，初始为1
   double m_Role;

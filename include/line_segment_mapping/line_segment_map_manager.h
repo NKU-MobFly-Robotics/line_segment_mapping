@@ -73,7 +73,7 @@ private:
    */
   LineSegment MergeLineSegments(const std::vector<LineSegment>& rLineSegments);
 
-  bool updateCheck() const;
+  bool updateCheck();
 
 private:
   LineSegmentHashTable m_LineSegmentMap;  // Global line segment map, wherein each line segment is represented in the
