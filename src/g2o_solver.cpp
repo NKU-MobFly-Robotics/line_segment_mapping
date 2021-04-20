@@ -21,20 +21,19 @@ typedef g2o::LinearSolverCSparse<SlamBlockSolver::PoseMatrixType> SlamLinearSolv
 G2oSolver::G2oSolver()
 {
   // Initialize the SparseOptimizer
-  SlamLinearSolver* linearSolver = new SlamLinearSolver();
+  // SlamLinearSolver* linearSolver = new SlamLinearSolver();
+  auto linearSolver = g2o::make_unique<SlamLinearSolver>();
   linearSolver->setBlockOrdering(false);
-  SlamBlockSolver* blockSolver = new SlamBlockSolver(linearSolver);
-  g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton(blockSolver);
+  // SlamBlockSolver* blockSolver = new SlamBlockSolver(linearSolver);
+  g2o::OptimizationAlgorithmGaussNewton* solver =
+      new g2o::OptimizationAlgorithmGaussNewton(g2o::make_unique<SlamBlockSolver>(std::move(linearSolver)));
 
   mOptimizer.setAlgorithm(solver);
 }
 
 G2oSolver::~G2oSolver()
 {
-  // destroy all the singletons
-  g2o::Factory::destroy();
-  g2o::OptimizationAlgorithmFactory::destroy();
-  g2o::HyperGraphActionLibrary::destroy();
+  mOptimizer.clear();
 }
 
 void G2oSolver::Clear()
