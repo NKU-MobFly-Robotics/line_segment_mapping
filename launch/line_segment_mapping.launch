@@ -3,9 +3,11 @@
 <launch>
   <param name="/use_sim_time" value="true" />
   
+  <!-- Please set up the tf of base_link_to_laser according to your datasets -->
   <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser" 
     args="0.08 0.0 0.0 0.0 0.0 0.0 /base_link /laser 40" />
 
+  <!-- Please set up the scan topic and odom frame according to your datasets -->
   <node pkg="line_segment_mapping" type="line_segment_mapping" name="line_segment_mapping" output="screen">
     <param name="scan_topic" value="scan"/>
     <param name="odom_frame" value="odom"/>

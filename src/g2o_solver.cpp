@@ -33,6 +33,7 @@ G2oSolver::G2oSolver()
 
 G2oSolver::~G2oSolver()
 {
+  // freeing the graph memory
   mOptimizer.clear();
 }
 
