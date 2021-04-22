@@ -8,7 +8,7 @@ The 2-D line segment feature is extarcted by a seeded region growing-based line 
 
 > H. Gao, X. Zhang, Y. Fang, and J. Yuan, "A line segment extraction algorithm using laser data based on seeded region growing," ***International Journal of Advanced Robotic Systems***, 2018, 15(1): 1-10. [[paper]](https://journals.sagepub.com/doi/full/10.1177/1729881418755245)[[code]](https://github.com/NKU-MobFly-Robotics/laser-line-segment)
 
-If you use this repo in your research, please kindly cite the above papers.
+Please cite the above papers if you use this repo in your research.
 
 ## How to use
 
