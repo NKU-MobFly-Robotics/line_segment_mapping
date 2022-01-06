@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <glog/logging.h>
 #include "open_karto/Karto.h"
 
 namespace karto
@@ -25,13 +26,13 @@ public:
     m_EndPoint = endPoint;
     m_Barycenter = (m_StartPoint + m_EndPoint) / 2;
     m_DirectionVector = m_EndPoint - m_StartPoint;
-    assert(!std::isnan(m_DirectionVector.GetX()) && !std::isnan(m_DirectionVector.GetY()));  // 排除NaN值的情况
+    CHECK(!std::isnan(m_DirectionVector.GetX()) && !std::isnan(m_DirectionVector.GetY()));  // 排除NaN值的情况
 
     m_Length = m_DirectionVector.Length();
-    assert(m_Length >= KT_TOLERANCE);
+    CHECK_GE(m_Length, KT_TOLERANCE);
 
     m_Heading = atan2(m_DirectionVector.GetY(), m_DirectionVector.GetX());
-    assert(math::InRange(m_Heading, -KT_PI, KT_PI));
+    CHECK(math::InRange(m_Heading, -KT_PI, KT_PI));
     m_UpdateTimes = 1;
 
     double A = m_EndPoint.GetY() - m_StartPoint.GetY();
@@ -44,6 +45,23 @@ public:
     m_Phi = atan2(y, x);
 
     m_pScan = NULL;
+    m_ClusterIndex = -1;
+  }
+
+  LineSegment(const LineSegment& rOther)
+  {
+    m_StartPoint = rOther.m_StartPoint;
+    m_EndPoint = rOther.m_EndPoint;
+    m_Barycenter = rOther.m_Barycenter;
+    m_DirectionVector = rOther.m_DirectionVector;
+    m_Length = rOther.m_Length;
+    m_Heading = rOther.m_Heading;
+    m_UpdateTimes = rOther.m_UpdateTimes;
+    m_Role = rOther.m_Role;
+    m_Phi = rOther.m_Phi;
+
+    m_pScan = NULL;
+    m_ClusterIndex = -1;
   }
 
   virtual ~LineSegment()
@@ -107,6 +125,21 @@ public:
     m_pScan = pScan;
   }
 
+  const LocalizedRangeScan* GetScan() const
+  {
+    return m_pScan;
+  }
+
+  void SetLineSegmentClusterIndex(const int lineSegmentClusterIndex)
+  {
+    m_ClusterIndex = lineSegmentClusterIndex;
+  }
+
+  const int& GetLineSegmentClusterIndex() const
+  {
+    return m_ClusterIndex;
+  }
+
   LineSegment GetGlobalLineSegments() const
   {
     Pose2 scanPose = m_pScan->GetSensorPose();
@@ -134,6 +167,7 @@ private:
   Vector2<double> m_DirectionVector;  // 单位方向向量
 
   const LocalizedRangeScan* m_pScan;  // 该线段关联的激光扫描
+  int m_ClusterIndex;
 
   int m_UpdateTimes;  // 线段被更新的次数，初始为1
   double m_Role;
@@ -141,9 +175,9 @@ private:
 };
 
 typedef std::vector<LineSegment> LineSegmentVector;
-typedef std::unordered_map<int, LineSegment> LineSegmentHashTable;
 typedef std::shared_ptr<LineSegment> LineSegmentPtr;
 typedef std::vector<LineSegmentPtr> LineSegmentPtrVector;
+typedef std::unordered_map<int, LineSegmentPtr> LineSegmentPtrHashTable;
 typedef std::unordered_map<int, LineSegmentPtrVector> LineSegmentPtrVectorHashTable;
 
 }  // namespace karto

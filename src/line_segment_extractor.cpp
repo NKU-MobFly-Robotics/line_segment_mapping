@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "line_segment_mapping/line_segment_extractor.h"
 
 namespace karto
@@ -451,13 +452,13 @@ void LineSegmentExtractor::is_sequential()
   {
     int m1 = iter->left;
     int n1 = iter->right;
-    assert(m1 < n1);
+    CHECK_LT(m1, n1);
     for (auto inner_iter = iter + 1; inner_iter != m_line.end(); ++inner_iter)
     {
       int m2 = inner_iter->left;
       int n2 = inner_iter->right;
-      assert(m2 < n2);
-      assert(n1 < m2);
+      CHECK_LT(m2, n2);
+      CHECK_LT(n1, m2);
     }
   }
 }
@@ -474,7 +475,7 @@ void LineSegmentExtractor::generate(const PointReadings& data, LineSegmentPtrVec
   {
     m = m_line[i].left;
     n = m_line[i].right;
-    assert(m < n);
+    CHECK_LT(m, n);
 
     if (m_line[i].b != 0)
     {

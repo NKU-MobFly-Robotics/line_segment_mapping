@@ -4,7 +4,6 @@
 #include <iostream>
 #include <stdio.h>
 #include <cmath>
-#include <assert.h>
 
 #include "open_karto/Math.h"
 #include "open_karto/Karto.h"

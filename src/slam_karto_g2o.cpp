@@ -38,7 +38,7 @@
 #include "line_segment_mapping/g2o_solver.h"
 
 #include <boost/thread.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <string>
 #include <map>
@@ -93,8 +93,8 @@ private:
   boost::mutex map_to_odom_mutex_;
 
   // Karto bookkeeping
-  boost::shared_ptr<karto::LineSegmentMapper> mapper_ptr_;
-  boost::shared_ptr<karto::LineSegmentExtractor> extractor_ptr_;
+  std::shared_ptr<karto::LineSegmentMapper> mapper_ptr_;
+  std::shared_ptr<karto::LineSegmentExtractor> extractor_ptr_;
   karto::Dataset* dataset_;
 
   G2oSolver* solver_;
@@ -162,8 +162,8 @@ SlamKarto::SlamKarto() : got_map_(false), laser_count_(0), transform_thread_(NUL
   transform_thread_ = new boost::thread(boost::bind(&SlamKarto::publishLoop, this, transform_publish_period));
 
   // Initialize Karto structures
-  mapper_ptr_ = boost::shared_ptr<karto::LineSegmentMapper>(new karto::LineSegmentMapper());
-  extractor_ptr_ = boost::shared_ptr<karto::LineSegmentExtractor>(new karto::LineSegmentExtractor());
+  mapper_ptr_ = std::shared_ptr<karto::LineSegmentMapper>(new karto::LineSegmentMapper());
+  extractor_ptr_ = std::shared_ptr<karto::LineSegmentExtractor>(new karto::LineSegmentExtractor());
   dataset_ = new karto::Dataset();
 
   // Setting General Parameters from the Parameter Server
@@ -545,7 +545,9 @@ bool SlamKarto::updateMap()
 
 void SlamKarto::publishLineSegmentMapVisualization(visualization_msgs::Marker& line_segment_map_marker)
 {
-  karto::LineSegmentHashTable line_segment_map = mapper_ptr_->GetLineSegmentMapManager()->GetLineSegmentMap();
+  const karto::LineSegmentPtrHashTable line_segment_hash_table =
+      mapper_ptr_->GetLineSegmentMapManager()->GetLineSegmentMap();
+
   line_segment_map_marker.ns = "karto";
   line_segment_map_marker.id = 0;
   line_segment_map_marker.type = visualization_msgs::Marker::LINE_LIST;
@@ -554,19 +556,22 @@ void SlamKarto::publishLineSegmentMapVisualization(visualization_msgs::Marker& l
   line_segment_map_marker.color.g = 0.0;
   line_segment_map_marker.color.b = 0.0;
   line_segment_map_marker.color.a = 1.0;
+  line_segment_map_marker.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
 
-  for (auto iter = line_segment_map.begin(); iter != line_segment_map.end(); ++iter)
+  for (auto hash_iter = line_segment_hash_table.begin(); hash_iter != line_segment_hash_table.end(); ++hash_iter)
   {
     // if (iter->second->n < 5) continue;
 
+    const karto::LineSegmentPtr merged_line_segment = hash_iter->second;
+
     geometry_msgs::Point p_start;
-    p_start.x = iter->second.GetStartPoint().GetX();
-    p_start.y = iter->second.GetStartPoint().GetY();
+    p_start.x = merged_line_segment->GetStartPoint().GetX();
+    p_start.y = merged_line_segment->GetStartPoint().GetY();
     p_start.z = 0;
     line_segment_map_marker.points.push_back(p_start);
     geometry_msgs::Point p_end;
-    p_end.x = iter->second.GetEndPoint().GetX();
-    p_end.y = iter->second.GetEndPoint().GetY();
+    p_end.x = merged_line_segment->GetEndPoint().GetX();
+    p_end.y = merged_line_segment->GetEndPoint().GetY();
     p_end.z = 0;
     line_segment_map_marker.points.push_back(p_end);
   }
@@ -601,6 +606,9 @@ bool SlamKarto::addScan(karto::LaserRangeFinder* laser, const sensor_msgs::Laser
   // create localized range scan
   karto::LineSegmentPtrVector line_segments;
   extractor_ptr_->extractLines(readings, laser, line_segments);
+
+  if (line_segments.empty())
+    return false;
 
   karto::LocalizedRangeScan* range_scan = new karto::LocalizedRangeScan(laser->GetName(), readings);
   range_scan->SetTime(scan->header.stamp.toSec());

@@ -44,7 +44,7 @@ public:
    */
   void GlobalMapAdjustment();
 
-  const LineSegmentHashTable& GetLineSegmentMap() const
+  const LineSegmentPtrHashTable& GetLineSegmentMap() const
   {
     return m_LineSegmentMap;
   }
@@ -71,13 +71,13 @@ private:
   /**
    * Merge linesegments
    */
-  LineSegment MergeLineSegments(const std::vector<LineSegment>& rLineSegments);
+  LineSegment* MergeLineSegments(const std::vector<LineSegment>& rLineSegments);
 
   bool updateCheck();
 
 private:
-  LineSegmentHashTable m_LineSegmentMap;  // Global line segment map, wherein each line segment is represented in the
-                                          // world coordinates
+  LineSegmentPtrHashTable m_LineSegmentMap;  // Global line segment map, wherein each line segment is represented in the
+                                             // world coordinates
   LineSegmentPtrVectorHashTable m_LineSegmentClusters;  // A hashtable used to record the line segment cluster and the
                                                         // corresponding original line segments
   std::vector<int> m_ClustersIndexArray;  // An array used to store the indices of the line segment cluster

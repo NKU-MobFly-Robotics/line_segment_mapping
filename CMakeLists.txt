@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   tf
   visualization_msgs
+  pcl_ros
 )
 
 # Eigen
@@ -28,6 +29,9 @@ find_package(G2O REQUIRED)
 # suitesparse   
 find_package(SUITESPARSE REQUIRED) 
 
+# glog
+find_package(Glog REQUIRED)
+
 catkin_package()
 
 include_directories(
@@ -36,6 +40,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   ${G2O_INCLUDE_DIR}
   ${SUITESPARSE_INCLUDE_DIRS}
+  ${GLOG_INCLUDE_DIRS}
 )
 
 add_executable(${PROJECT_NAME}
@@ -50,4 +55,5 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES} 
   ${G2O_LIBRARIES}
   ${SUITESPARSE_LIBRARIES} 
+  ${GLOG_LIBRARIES}
 )
