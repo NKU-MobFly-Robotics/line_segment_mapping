@@ -19,7 +19,12 @@ After installing g2o solver, please create and initialize a ROS workspace. We as
 $ cd ~/catkin_ws/src/
 $ git clone https://github.com/ros-perception/open_karto.git
 $ cd ..
-$ catkin_make
+$ catkin_make -DCMAKE_BUILD_TYPE=Release
+```
+
+Please also install glog
+```
+sudo apt install libgoogle-glog-dev
 ```
 
 After the above preparation, clone and build this package:
@@ -27,7 +32,7 @@ After the above preparation, clone and build this package:
 $ cd ~/catkin_ws/src/
 $ git clone https://github.com/NKU-MobFly-Robotics/line_segment_mapping.git
 $ cd ..
-$ catkin_make
+$ catkin_make -DCMAKE_BUILD_TYPE=Release
 ```
 
 Finally, run the following commands to launch Karto SLAM with line segment mapping:
