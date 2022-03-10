@@ -32,7 +32,21 @@ find_package(SUITESPARSE REQUIRED)
 # glog
 find_package(Glog REQUIRED)
 
-catkin_package()
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES line_segment_mapping
+  CATKIN_DEPENDS
+    cmake_modules
+    geometry_msgs
+    message_filters
+    nav_msgs
+    open_karto
+    roscpp
+    sensor_msgs
+    tf
+    visualization_msgs
+    pcl_ros
+)
 
 include_directories(
   include
@@ -43,17 +57,18 @@ include_directories(
   ${GLOG_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}
+add_library(${PROJECT_NAME}
   src/g2o_solver.cpp
   src/line_segment_extractor.cpp
   src/line_segment_map_manager.cpp
   src/line_segment_mapper.cpp
-  src/slam_karto_g2o.cpp
 )
-
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES} 
   ${G2O_LIBRARIES}
   ${SUITESPARSE_LIBRARIES} 
   ${GLOG_LIBRARIES}
 )
+
+add_executable(${PROJECT_NAME}_node src/slam_karto_g2o.cpp)
+target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME} ${catkin_LIBRARIES})
