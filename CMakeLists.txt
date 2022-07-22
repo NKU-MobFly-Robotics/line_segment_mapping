@@ -30,7 +30,8 @@ find_package(G2O REQUIRED)
 find_package(SUITESPARSE REQUIRED) 
 
 # glog
-find_package(Glog REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(glog REQUIRED libglog)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -68,6 +69,7 @@ target_link_libraries(${PROJECT_NAME}
   ${G2O_LIBRARIES}
   ${SUITESPARSE_LIBRARIES} 
   ${GLOG_LIBRARIES}
+  ${glog_LDFLAGS}
 )
 
 add_executable(${PROJECT_NAME}_node src/slam_karto_g2o.cpp)
