@@ -1,7 +1,7 @@
 # General Parameters
 use_scan_matching: True
 use_scan_barycenter: True
-minimum_travel_distance: 0.2 
+minimum_travel_distance: 0.2
 minimum_travel_heading: 0.174              #in radians
 scan_buffer_size: 70
 scan_buffer_maximum_scan_distance: 20.0

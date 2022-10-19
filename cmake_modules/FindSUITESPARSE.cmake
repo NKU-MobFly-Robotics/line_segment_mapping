@@ -1,6 +1,6 @@
 # - Try to find SUITESPARSE
 # Once done this will define
-#  
+#
 #  SUITESPARSE_FOUND            - system has SUITESPARSE
 #  SUITESPARSE_INCLUDE_DIRS     - the SUITESPARSE include directory
 #  SUITESPARSE_LIBRARIES        - Link these to use SUITESPARSE
@@ -28,14 +28,14 @@ if( WIN32 )
 
 
    # find path suitesparse library
-   FIND_PATH( SUITESPARSE_LIBRARY_DIRS 
+   FIND_PATH( SUITESPARSE_LIBRARY_DIRS
 	         amd.lib
                PATHS "C:\\libs\\win32\\SuiteSparse\\libs" )
 
    # if we found the library, add it to the defined libraries
    IF ( SUITESPARSE_LIBRARY_DIRS )
 	list ( APPEND SUITESPARSE_LIBRARIES optimized;amd;optimized;camd;optimized;ccolamd;optimized;cholmod;optimized;colamd;optimized;metis;optimized;spqr;optimized;umfpack;debug;amdd;debug;camdd;debug;ccolamdd;debug;cholmodd;debug;spqrd;debug;umfpackd;debug;colamdd;debug;metisd;optimized;blas;optimized;libf2c;optimized;lapack;debug;blasd;debug;libf2cd;debug;lapackd )
-   ENDIF( SUITESPARSE_LIBRARY_DIRS )  
+   ENDIF( SUITESPARSE_LIBRARY_DIRS )
 
 else( WIN32 )
    IF(APPLE)
@@ -49,15 +49,15 @@ else( WIN32 )
 			    /usr/local/lib )
    ELSE(APPLE)
 	   FIND_PATH( CHOLMOD_INCLUDE_DIR cholmod.h
-        	      PATHS /usr/local/include 
-        	            /usr/include 
-        	            /usr/include/suitesparse/ 
+        	      PATHS /usr/local/include
+        	            /usr/include
+        	            /usr/include/suitesparse/
         	            ${CMAKE_SOURCE_DIR}/MacOS/Libs/cholmod
               	      PATH_SUFFIXES cholmod/ CHOLMOD/ )
-   	
+
            FIND_PATH( SUITESPARSE_LIBRARY_DIR
                       NAMES libcholmod.so libcholmod.a
-                      PATHS /usr/lib 
+                      PATHS /usr/lib
                             /usr/lib64
                             /usr/lib/x86_64-linux-gnu
                             /usr/lib/i386-linux-gnu
@@ -96,7 +96,7 @@ else( WIN32 )
        FIND_LIBRARY( SUITESPARSE_METIS_LIBRARY
                      NAMES metis
                      PATHS ${SUITESPARSE_LIBRARY_DIR} )
-       IF (SUITESPARSE_METIS_LIBRARY)			
+       IF (SUITESPARSE_METIS_LIBRARY)
 	  list ( APPEND SUITESPARSE_LIBRARIES metis)
        ENDIF(SUITESPARSE_METIS_LIBRARY)
 
@@ -110,13 +110,13 @@ else( WIN32 )
 	  FIND_LIBRARY( SUITESPARSE_SPQR_LIBRARY
 		      NAMES spqr
 		      PATHS ${SUITESPARSE_LIBRARY_DIR} )
-	  IF (SUITESPARSE_SPQR_LIBRARY)			
+	  IF (SUITESPARSE_SPQR_LIBRARY)
 	    list ( APPEND SUITESPARSE_LIBRARIES spqr)
 	  ENDIF (SUITESPARSE_SPQR_LIBRARY)
        endif()
-       
-    ENDIF( SUITESPARSE_LIBRARY_DIR )  
-   
+
+    ENDIF( SUITESPARSE_LIBRARY_DIR )
+
 endif( WIN32 )
 
 
@@ -130,4 +130,3 @@ ELSE (SUITESPARSE_INCLUDE_DIRS AND SUITESPARSE_LIBRARIES)
    SET( SUITESPARSE_FOUND FALSE )
    MESSAGE(FATAL_ERROR "Unable to find SuiteSparse")
 ENDIF (SUITESPARSE_INCLUDE_DIRS AND SUITESPARSE_LIBRARIES)
-

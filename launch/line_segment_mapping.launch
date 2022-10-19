@@ -2,9 +2,9 @@
 
 <launch>
   <param name="/use_sim_time" value="true" />
-  
+
   <!-- Please set up the tf of base_link_to_laser according to your datasets -->
-  <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser" 
+  <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser"
     args="0.08 0.0 0.0 0.0 0.0 0.0 /base_link /laser 40" />
 
   <!-- Please set up the scan topic and odom frame according to your datasets -->

@@ -23,11 +23,11 @@ find_package(catkin REQUIRED COMPONENTS
 # Eigen
 find_package(Eigen3 REQUIRED)
 
-# g2o  
-find_package(G2O REQUIRED)   
+# g2o
+find_package(G2O REQUIRED)
 
-# suitesparse   
-find_package(SUITESPARSE REQUIRED) 
+# suitesparse
+find_package(SUITESPARSE REQUIRED)
 
 # glog
 find_package(glog REQUIRED)
@@ -62,9 +62,9 @@ add_library(${PROJECT_NAME}
   src/line_segment_mapper.cpp
 )
 target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES} 
+  ${catkin_LIBRARIES}
   ${G2O_LIBRARIES}
-  ${SUITESPARSE_LIBRARIES} 
+  ${SUITESPARSE_LIBRARIES}
   glog::glog
   Eigen3::Eigen
 )
