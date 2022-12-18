@@ -1,55 +1,88 @@
-#include <glog/logging.h>
+/******************************************************************************
+ * Copyright (c) 2022, NKU Mobile & Flying Robotics Lab
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 'AS IS'
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *****************************************************************************/
+
 #include "line_segment_mapping/line_segment_map_manager.h"
 
-namespace karto
-{
-bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments)
-{
+#include "glog/logging.h"
+
+namespace karto {
+bool LineSegmentMapManager::NaiveMerge(
+    const LineSegmentPtrVector& rLineSegments) {
   bool doUpdate = false;
 
-  // The global line segment map is empty, insert the current line segments directly
-  if (m_LineSegmentMap.empty())
-  {
-    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-    {
+  // The global line segment map is empty, insert the current line segments
+  // directly
+  if (m_LineSegmentMap.empty()) {
+    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end();
+         ++iter) {
       LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
-      LineSegmentPtr newLineSegment = std::make_shared<LineSegment>(globalLineSegment);
-      m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
+      LineSegmentPtr newLineSegment =
+          std::make_shared<LineSegment>(globalLineSegment);
+      m_LineSegmentMap.insert(
+          std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
 
       LineSegmentPtrVector lineSegmentCluster;
       lineSegmentCluster.push_back(*iter);
-      m_LineSegmentClusters.insert(std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
+      m_LineSegmentClusters.insert(
+          std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
 
       m_ClustersIndexArray.push_back(m_LineSegmentClustersIndex);
       m_LineSegmentClustersIndex++;
     }
     doUpdate = true;
-  }
-  else
-  {
+  } else {
     std::vector<bool> remain;
     remain.resize(rLineSegments.size(), true);
     int remainId = 0;
-    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-    {
-      for (auto inner_iter = m_LineSegmentMap.begin(); inner_iter != m_LineSegmentMap.end(); ++inner_iter)
-      {
+    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end();
+         ++iter) {
+      for (auto inner_iter = m_LineSegmentMap.begin();
+           inner_iter != m_LineSegmentMap.end(); ++inner_iter) {
         // Obtain the current line segments in world coordinates
         LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
 
-        if (CalculateOverlap(*(inner_iter->second), globalLineSegment))
-        {
+        if (CalculateOverlap(*(inner_iter->second), globalLineSegment)) {
           LineSegmentVector candidates;
           candidates.push_back(globalLineSegment);
 
-          LineSegmentPtrVector* originalLineSegments = &m_LineSegmentClusters[inner_iter->first];
-          for (auto iterator = originalLineSegments->begin(); iterator != originalLineSegments->end(); ++iterator)
-          {
+          LineSegmentPtrVector* originalLineSegments =
+              &m_LineSegmentClusters[inner_iter->first];
+          for (auto iterator = originalLineSegments->begin();
+               iterator != originalLineSegments->end(); ++iterator) {
             LineSegment tmp = (*iterator)->GetGlobalLineSegments();
             candidates.push_back(tmp);
           }
 
-          // Merge the redundant line segments and update the global line segment map
+          // Merge the redundant line segments and update the global line
+          // segment map
           LineSegment* updatedLine = MergeLineSegments(candidates);
           inner_iter->second.reset(updatedLine);
 
@@ -65,20 +98,23 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
       remainId++;
     }
 
-    // Insert the line segments extarcted from the current scan into the global line segment map
-    // These line segments are new and there are no line segments in the global map that match them
+    // Insert the line segments extarcted from the current scan into the global
+    // line segment map These line segments are new and there are no line
+    // segments in the global map that match them
     remainId = 0;
-    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-    {
-      if (remain[remainId])
-      {
+    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end();
+         ++iter) {
+      if (remain[remainId]) {
         LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
-        LineSegmentPtr newLineSegment = std::make_shared<LineSegment>(globalLineSegment);
-        m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
+        LineSegmentPtr newLineSegment =
+            std::make_shared<LineSegment>(globalLineSegment);
+        m_LineSegmentMap.insert(
+            std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
 
         LineSegmentPtrVector lineSegmentCluster;
         lineSegmentCluster.push_back(*iter);
-        m_LineSegmentClusters.insert(std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
+        m_LineSegmentClusters.insert(
+            std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
 
         m_ClustersIndexArray.push_back(m_LineSegmentClustersIndex);
         m_LineSegmentClustersIndex++;
@@ -93,119 +129,118 @@ bool LineSegmentMapManager::NaiveMerge(const LineSegmentPtrVector& rLineSegments
   return doUpdate;
 }
 
-bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSegments)
-{
+bool LineSegmentMapManager::IncrementalMerge(
+    const LineSegmentPtrVector& rLineSegments) {
   bool doUpdate = false;
   bool doMerge = false;
   int index = -1;
   LineSegmentVector candidates;
   std::vector<int> candidateIndex;
 
-  // The global line segment map is empty, insert the current line segments directly
-  if (m_LineSegmentMap.empty())
-  {
-    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-    {
+  // The global line segment map is empty, insert the current line segments
+  // directly
+  if (m_LineSegmentMap.empty()) {
+    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end();
+         ++iter) {
       LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
-      LineSegmentPtr newLineSegment = std::make_shared<LineSegment>(globalLineSegment);
-      m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
+      LineSegmentPtr newLineSegment =
+          std::make_shared<LineSegment>(globalLineSegment);
+      m_LineSegmentMap.insert(
+          std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
       (*iter)->SetLineSegmentClusterIndex(m_LineSegmentClustersIndex);
 
       LineSegmentPtrVector lineSegmentCluster;
       lineSegmentCluster.push_back(*iter);
-      m_LineSegmentClusters.insert(std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
+      m_LineSegmentClusters.insert(
+          std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
 
       m_ClustersIndexArray.push_back(m_LineSegmentClustersIndex);
       m_LineSegmentClustersIndex++;
     }
 
     doUpdate = true;
-  }
-  else
-  {
+  } else {
     std::vector<bool> remain;
     remain.resize(rLineSegments.size(), true);
     int remainId = 0;
-    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-    {
-      for (auto inner_iter = m_LineSegmentMap.begin(); inner_iter != m_LineSegmentMap.end();)
-      {
+    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end();
+         ++iter) {
+      for (auto inner_iter = m_LineSegmentMap.begin();
+           inner_iter != m_LineSegmentMap.end();) {
         LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
-        if (CalculateOverlap(*(inner_iter->second), globalLineSegment))
-        {
+        if (CalculateOverlap(*(inner_iter->second), globalLineSegment)) {
           doUpdate = true;
           doMerge = true;
           remain[remainId] = false;
 
-          LineSegmentPtrVector originalLineSegments = m_LineSegmentClusters[inner_iter->first];
-          for (auto iterator = originalLineSegments.begin(); iterator != originalLineSegments.end(); ++iterator)
-          {
+          LineSegmentPtrVector originalLineSegments =
+              m_LineSegmentClusters[inner_iter->first];
+          for (auto iterator = originalLineSegments.begin();
+               iterator != originalLineSegments.end(); ++iterator) {
             LineSegment tmp = (*iterator)->GetGlobalLineSegments();
             candidates.push_back(tmp);
           }
 
-          // It is possible to have more than one line segment in the global map matching this line segment
-          // So we record the minimum index of the matched line segments in the global map
-          if (index == -1)
-          {
+          // It is possible to have more than one line segment in the global map
+          // matching this line segment So we record the minimum index of the
+          // matched line segments in the global map
+          if (index == -1) {
             candidates.push_back(globalLineSegment);
             index = inner_iter->first;
             ++inner_iter;
-          }
-          else
-          {
+          } else {
             candidateIndex.push_back(inner_iter->first);
             inner_iter = m_LineSegmentMap.erase(inner_iter);
           }
-        }
-        else
-        {
+        } else {
           ++inner_iter;
         }
       }  // inner loop end
 
-      if (doMerge)
-      {
+      if (doMerge) {
         LineSegment* updatedLine = MergeLineSegments(candidates);
         m_LineSegmentMap[index].reset(updatedLine);
 
         LineSegmentPtrVector* objectCluster = &m_LineSegmentClusters[index];
 
-        // Move the corresponding original line segments of the merged line segments to the new cluster
-        for (auto index_iter = candidateIndex.begin(); index_iter != candidateIndex.end(); ++index_iter)
-        {
-          LineSegmentPtrVector* candidateCluster = &m_LineSegmentClusters[*index_iter];
-          for (auto cluster_iter = candidateCluster->begin(); cluster_iter != candidateCluster->end(); ++cluster_iter)
-          {
+        // Move the corresponding original line segments of the merged line
+        // segments to the new cluster
+        for (auto index_iter = candidateIndex.begin();
+             index_iter != candidateIndex.end(); ++index_iter) {
+          LineSegmentPtrVector* candidateCluster =
+              &m_LineSegmentClusters[*index_iter];
+          for (auto cluster_iter = candidateCluster->begin();
+               cluster_iter != candidateCluster->end(); ++cluster_iter) {
             (*cluster_iter)->SetLineSegmentClusterIndex(index);
           }
 
-          objectCluster->insert(objectCluster->end(), candidateCluster->begin(), candidateCluster->end());
+          objectCluster->insert(objectCluster->end(), candidateCluster->begin(),
+                                candidateCluster->end());
           candidateCluster->clear();
         }
         (*iter)->SetLineSegmentClusterIndex(index);
         objectCluster->push_back(*iter);
 
         bool flag = false;
-        for (auto index_iter = m_ClustersIndexArray.begin(); index_iter != m_ClustersIndexArray.end();)
-        {
-          for (auto candidate_iter = candidateIndex.begin(); candidate_iter != candidateIndex.end();)
-          {
-            if (*index_iter == *candidate_iter)
-            {
+        for (auto index_iter = m_ClustersIndexArray.begin();
+             index_iter != m_ClustersIndexArray.end();) {
+          for (auto candidate_iter = candidateIndex.begin();
+               candidate_iter != candidateIndex.end();) {
+            if (*index_iter == *candidate_iter) {
               flag = true;
               index_iter = m_ClustersIndexArray.erase(index_iter);
               candidate_iter = candidateIndex.erase(candidate_iter);
               break;
-            }
-            else
+            } else {
               ++candidate_iter;
+            }
           }
 
-          if (flag)
+          if (flag) {
             flag = false;
-          else
+          } else {
             ++index_iter;
+          }
         }
       }
 
@@ -219,18 +254,20 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
     }
 
     remainId = 0;
-    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-    {
-      if (remain[remainId])
-      {
+    for (auto iter = rLineSegments.begin(); iter != rLineSegments.end();
+         ++iter) {
+      if (remain[remainId]) {
         LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
-        LineSegmentPtr newLineSegment = std::make_shared<LineSegment>(globalLineSegment);
-        m_LineSegmentMap.insert(std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
+        LineSegmentPtr newLineSegment =
+            std::make_shared<LineSegment>(globalLineSegment);
+        m_LineSegmentMap.insert(
+            std::make_pair(m_LineSegmentClustersIndex, newLineSegment));
         (*iter)->SetLineSegmentClusterIndex(m_LineSegmentClustersIndex);
 
         LineSegmentPtrVector lineSegmentCluster;
         lineSegmentCluster.push_back(*iter);
-        m_LineSegmentClusters.insert(std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
+        m_LineSegmentClusters.insert(
+            std::make_pair(m_LineSegmentClustersIndex, lineSegmentCluster));
 
         m_ClustersIndexArray.push_back(m_LineSegmentClustersIndex);
         m_LineSegmentClustersIndex++;
@@ -245,13 +282,11 @@ bool LineSegmentMapManager::IncrementalMerge(const LineSegmentPtrVector& rLineSe
   return doUpdate;
 }
 
-void LineSegmentMapManager::GlobalMapAdjustment()
-{
+void LineSegmentMapManager::GlobalMapAdjustment() {
   std::cout << "Global map adjustment called." << std::endl;
 
   // #pragma omp parallel for
-  for (int i = 0; i < static_cast<int>(m_ClustersIndexArray.size()); i++)
-  {
+  for (int i = 0; i < static_cast<int>(m_ClustersIndexArray.size()); i++) {
     MapAdjustment(m_ClustersIndexArray[i]);
   }
 
@@ -259,45 +294,50 @@ void LineSegmentMapManager::GlobalMapAdjustment()
   // assert(updateCheck());
 }
 
-bool LineSegmentMapManager::CalculateOverlap(const LineSegment& prevLineSegment, const LineSegment& currLineSegment)
-{
-  double headingDeviation = math::NormalizeAngle(currLineSegment.GetHeading() - prevLineSegment.GetHeading());
-  if (fabs(headingDeviation) > math::DegreesToRadians(4.0))  // The two line segments are not parallel
-  {
+bool LineSegmentMapManager::CalculateOverlap(
+    const LineSegment& prevLineSegment, const LineSegment& currLineSegment) {
+  double headingDeviation = math::NormalizeAngle(currLineSegment.GetHeading() -
+                                                 prevLineSegment.GetHeading());
+  // The two line segments are not parallel
+  if (fabs(headingDeviation) > math::DegreesToRadians(4.0)) {
     return false;
   }
 
   double A, B, C;
 
-  // Considering whether the slope of a straight line exists or not, it is discussed in two cases
-  // and finally transformed into a general formula of a straight line
-  if (fabs(fabs(prevLineSegment.GetHeading()) - KT_PI_2) < KT_TOLERANCE)
-  {
+  // Considering whether the slope of a straight line exists or not, it is
+  // discussed in two cases and finally transformed into a general formula of a
+  // straight line
+  if (fabs(fabs(prevLineSegment.GetHeading()) - KT_PI_2) < KT_TOLERANCE) {
     A = 1;
     B = 0;
-    C = -(prevLineSegment.GetStartPoint().GetX() + prevLineSegment.GetEndPoint().GetX()) / 2.0;
-  }
-  else
-  {
+    C = -(prevLineSegment.GetStartPoint().GetX() +
+          prevLineSegment.GetEndPoint().GetX()) /
+        2.0;
+  } else {
     A = tan(prevLineSegment.GetHeading());
     B = -1;
-    C = prevLineSegment.GetStartPoint().GetY() - A * prevLineSegment.GetStartPoint().GetX();
+    C = prevLineSegment.GetStartPoint().GetY() -
+        A * prevLineSegment.GetStartPoint().GetX();
   }
 
   double dist1 =
-      point_to_line_distance(A, B, C, currLineSegment.GetStartPoint().GetX(), currLineSegment.GetStartPoint().GetY());
+      point_to_line_distance(A, B, C, currLineSegment.GetStartPoint().GetX(),
+                             currLineSegment.GetStartPoint().GetY());
   double dist2 =
-      point_to_line_distance(A, B, C, currLineSegment.GetEndPoint().GetX(), currLineSegment.GetEndPoint().GetY());
+      point_to_line_distance(A, B, C, currLineSegment.GetEndPoint().GetX(),
+                             currLineSegment.GetEndPoint().GetY());
   double dist = math::Maximum(dist1, dist2);
 
-  if (dist > 0.10)
-  {
+  if (dist > 0.10) {
     return false;
   }
 
   // 将线段端点投影到直线上
-  // 已知直线M的一般式方程为Ax+By+C=0, 则过点(a, b)且与L垂直的直线N的一般式方程为Bx-Ay+Ab-Ba=0
-  // 直线M与直线N的交点坐标：x=(B*B*a-A*B*b-A*C)/(A*A+B*B), y=(A*A*b-A*B*a-B*C)/(A*A+B*B)
+  // 已知直线M的一般式方程为Ax+By+C=0, 则过点(a,
+  // b)且与L垂直的直线N的一般式方程为Bx-Ay+Ab-Ba=0
+  // 直线M与直线N的交点坐标：x=(B*B*a-A*B*b-A*C)/(A*A+B*B),
+  // y=(A*A*b-A*B*a-B*C)/(A*A+B*B)
   double x, y;
   Vector2<double> prevStartPoint, prevEndPoint, currStartPoint, currEndPoint;
 
@@ -306,16 +346,20 @@ bool LineSegmentMapManager::CalculateOverlap(const LineSegment& prevLineSegment,
   prevEndPoint.SetX(prevLineSegment.GetEndPoint().GetX());
   prevEndPoint.SetY(prevLineSegment.GetEndPoint().GetY());
 
-  x = (B * B * currLineSegment.GetStartPoint().GetX() - A * B * currLineSegment.GetStartPoint().GetY() - A * C) /
+  x = (B * B * currLineSegment.GetStartPoint().GetX() -
+       A * B * currLineSegment.GetStartPoint().GetY() - A * C) /
       (A * A + B * B);
-  y = (A * A * currLineSegment.GetStartPoint().GetY() - A * B * currLineSegment.GetStartPoint().GetX() - B * C) /
+  y = (A * A * currLineSegment.GetStartPoint().GetY() -
+       A * B * currLineSegment.GetStartPoint().GetX() - B * C) /
       (A * A + B * B);
   currStartPoint.SetX(x);
   currStartPoint.SetY(y);
 
-  x = (B * B * currLineSegment.GetEndPoint().GetX() - A * B * currLineSegment.GetEndPoint().GetY() - A * C) /
+  x = (B * B * currLineSegment.GetEndPoint().GetX() -
+       A * B * currLineSegment.GetEndPoint().GetY() - A * C) /
       (A * A + B * B);
-  y = (A * A * currLineSegment.GetEndPoint().GetY() - A * B * currLineSegment.GetEndPoint().GetX() - B * C) /
+  y = (A * A * currLineSegment.GetEndPoint().GetY() -
+       A * B * currLineSegment.GetEndPoint().GetX() - B * C) /
       (A * A + B * B);
   currEndPoint.SetX(x);
   currEndPoint.SetY(y);
@@ -329,51 +373,48 @@ bool LineSegmentMapManager::CalculateOverlap(const LineSegment& prevLineSegment,
   // 当前线段终点指向参考线段终点的方向向量
   Vector2<double> vector4 = currEndPoint - prevEndPoint;
 
-  if (vector1.GetX() * vector2.GetX() + vector1.GetY() * vector2.GetY() > 0)  // 说明当前线段的起点落在参考线段的两侧
-  {
-    if (vector1.Length() < vector2.Length())  // 说明当前线段的起点落在参考线段起点的外侧
-    {
+  // 说明当前线段的起点落在参考线段的两侧
+  if (vector1.GetX() * vector2.GetX() + vector1.GetY() * vector2.GetY() > 0) {
+    // 说明当前线段的起点落在参考线段起点的外侧
+    if (vector1.Length() < vector2.Length()) {
+      // 说明当前线段的终点落在参考线段的两侧
       if (vector3.GetX() * vector4.GetX() + vector3.GetY() * vector4.GetY() >
-          0)  // 说明当前线段的终点落在参考线段的两侧
-      {
-        if (vector3.Length() < vector4.Length())  // 说明当前线段的终点落在参考线段起点的外侧
-        {
-          if (vector3.Length() <= 0.10)
+          0) {
+        // 说明当前线段的终点落在参考线段起点的外侧
+        if (vector3.Length() < vector4.Length()) {
+          if (vector3.Length() <= 0.10) {
             return true;
-          else
+          } else {
             return false;
-        }
-        else  // 说明当前线段的终点落在参考线段终点的外侧
-        {
+          }
+        } else {
+          // 说明当前线段的终点落在参考线段终点的外侧
           return true;
         }
-      }
-      else  // 说明当前线段的终点落在参考线段的内部(包含端点)
-      {
+      } else {
+        // 说明当前线段的终点落在参考线段的内部(包含端点)
         return true;
       }
-    }
-    else  // 说明当前线段的起点落在参考线段终点的外侧
-    {
-      if (vector2.Length() <= 0.10)
+    } else {
+      // 说明当前线段的起点落在参考线段终点的外侧
+      if (vector2.Length() <= 0.10) {
         return true;
-      else
+      } else {
         return false;
+      }
     }
-  }
-  else  // 说明当前线段的起点落在参考线段的内部(包含端点)
-  {
+  } else {
+    // 说明当前线段的起点落在参考线段的内部(包含端点)
     return true;
   }
 }
 
-void LineSegmentMapManager::MapAdjustment(int index)
-{
+void LineSegmentMapManager::MapAdjustment(int index) {
   LineSegmentPtrVector lineSegmentCluster = m_LineSegmentClusters[index];
   LineSegmentVector globalLineSegments;
 
-  for (auto iter = lineSegmentCluster.begin(); iter != lineSegmentCluster.end(); ++iter)
-  {
+  for (auto iter = lineSegmentCluster.begin(); iter != lineSegmentCluster.end();
+       ++iter) {
     LineSegment globalLineSegment = (*iter)->GetGlobalLineSegments();
     globalLineSegments.push_back(globalLineSegment);
   }
@@ -381,8 +422,8 @@ void LineSegmentMapManager::MapAdjustment(int index)
   LineSegment* newLineSegment = MergeLineSegments(globalLineSegments);
   m_LineSegmentMap[index].reset(newLineSegment);
 
-  for (auto iter = lineSegmentCluster.begin(); iter != lineSegmentCluster.end(); ++iter)
-  {
+  for (auto iter = lineSegmentCluster.begin(); iter != lineSegmentCluster.end();
+       ++iter) {
     (*iter)->SetLineSegmentClusterIndex(index);
   }
 }
@@ -390,14 +431,13 @@ void LineSegmentMapManager::MapAdjustment(int index)
 /**
  * Merge linesegments
  */
-LineSegment* LineSegmentMapManager::MergeLineSegments(const LineSegmentVector& rLineSegments)
-{
+LineSegment* LineSegmentMapManager::MergeLineSegments(
+    const LineSegmentVector& rLineSegments) {
   CHECK(!rLineSegments.empty());
   Vector2<double> directionVector;
   Vector2<double> centralPoint;
   int updateRate = 0;
-  for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-  {
+  for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter) {
     directionVector += iter->GetDirectionVector();
     centralPoint += iter->GetBarycenter();
     updateRate += iter->GetUpdateTimes();
@@ -409,18 +449,16 @@ LineSegment* LineSegmentMapManager::MergeLineSegments(const LineSegmentVector& r
   double heading = atan2(directionVector.GetY(), directionVector.GetX());
   CHECK(math::InRange(heading, -KT_PI, KT_PI));
 
-  Vector2<double> barycenter = centralPoint / static_cast<int>(rLineSegments.size());
+  Vector2<double> barycenter =
+      centralPoint / static_cast<int>(rLineSegments.size());
 
   double A, B, C;
   // 考虑直线斜率存在与否，分两种情况讨论，最终化为直线的一般式
-  if (fabs(fabs(heading) - KT_PI_2) < KT_TOLERANCE)
-  {
+  if (fabs(fabs(heading) - KT_PI_2) < KT_TOLERANCE) {
     A = 1;
     B = 0;
     C = -barycenter.GetX();
-  }
-  else
-  {
+  } else {
     A = tan(heading);
     B = -1;
     C = barycenter.GetY() - A * barycenter.GetX();
@@ -428,27 +466,31 @@ LineSegment* LineSegmentMapManager::MergeLineSegments(const LineSegmentVector& r
 
   PointVectorDouble startPointVector, endPointVector;
   Vector2<double> startPoint, endPoint;
-  for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter)
-  {
-    startPoint.SetX((B * B * iter->GetStartPoint().GetX() - A * B * iter->GetStartPoint().GetY() - A * C) /
+  for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter) {
+    startPoint.SetX((B * B * iter->GetStartPoint().GetX() -
+                     A * B * iter->GetStartPoint().GetY() - A * C) /
                     (A * A + B * B));
-    startPoint.SetY((A * A * iter->GetStartPoint().GetY() - A * B * iter->GetStartPoint().GetX() - B * C) /
+    startPoint.SetY((A * A * iter->GetStartPoint().GetY() -
+                     A * B * iter->GetStartPoint().GetX() - B * C) /
                     (A * A + B * B));
     startPointVector.push_back(startPoint);
-    endPoint.SetX((B * B * iter->GetEndPoint().GetX() - A * B * iter->GetEndPoint().GetY() - A * C) / (A * A + B * B));
-    endPoint.SetY((A * A * iter->GetEndPoint().GetY() - A * B * iter->GetEndPoint().GetX() - B * C) / (A * A + B * B));
+    endPoint.SetX((B * B * iter->GetEndPoint().GetX() -
+                   A * B * iter->GetEndPoint().GetY() - A * C) /
+                  (A * A + B * B));
+    endPoint.SetY((A * A * iter->GetEndPoint().GetY() -
+                   A * B * iter->GetEndPoint().GetX() - B * C) /
+                  (A * A + B * B));
     endPointVector.push_back(endPoint);
   }
 
   double maximumDistance = 0;
   Vector2<double> updatedStartPoint, updatedEndPoint;
-  for (auto iter = startPointVector.begin(); iter != startPointVector.end(); ++iter)
-  {
-    for (auto inner_iter = endPointVector.begin(); inner_iter != endPointVector.end(); ++inner_iter)
-    {
+  for (auto iter = startPointVector.begin(); iter != startPointVector.end();
+       ++iter) {
+    for (auto inner_iter = endPointVector.begin();
+         inner_iter != endPointVector.end(); ++inner_iter) {
       double distance = (*iter - *inner_iter).Length();
-      if (distance > maximumDistance)
-      {
+      if (distance > maximumDistance) {
         maximumDistance = distance;
         updatedStartPoint = *iter;
         updatedEndPoint = *inner_iter;
@@ -456,18 +498,17 @@ LineSegment* LineSegmentMapManager::MergeLineSegments(const LineSegmentVector& r
     }
   }
 
-  LineSegment* lineSegment = new LineSegment(updatedStartPoint, updatedEndPoint);
+  LineSegment* lineSegment =
+      new LineSegment(updatedStartPoint, updatedEndPoint);
   lineSegment->SetUpdateTimes(updateRate);
   return lineSegment;
 }
 
-bool LineSegmentMapManager::updateCheck()
-{
-  for (auto iter = m_LineSegmentMap.begin(); iter != m_LineSegmentMap.end(); ++iter)
-  {
+bool LineSegmentMapManager::updateCheck() {
+  for (auto iter = m_LineSegmentMap.begin(); iter != m_LineSegmentMap.end();
+       ++iter) {
     int updateNum = static_cast<int>(m_LineSegmentClusters[iter->first].size());
-    if (updateNum != iter->second->GetUpdateTimes())
-    {
+    if (updateNum != iter->second->GetUpdateTimes()) {
       return false;
     }
   }
