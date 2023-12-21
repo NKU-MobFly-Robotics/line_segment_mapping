@@ -38,19 +38,19 @@
 class G2oSolver : public karto::ScanSolver {
  public:
   G2oSolver();
-  virtual ~G2oSolver();
+  ~G2oSolver() override;
 
  public:
-  virtual void Clear();
-  virtual void Compute();
-  virtual const karto::ScanSolver::IdPoseVector& GetCorrections() const;
+  void Clear() override;
+  void Compute() override;
+  const karto::ScanSolver::IdPoseVector& GetCorrections() const override;
 
-  virtual void AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex);
-  virtual void AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge);
+  void AddNode(karto::Vertex<karto::LocalizedRangeScan>* vertex) override;
+  void AddConstraint(karto::Edge<karto::LocalizedRangeScan>* edge) override;
 
-  void publishGraphVisualization(visualization_msgs::MarkerArray* marray) const;
+  void PublishGraphVisualization(visualization_msgs::MarkerArray* marker_array);
 
  private:
-  karto::ScanSolver::IdPoseVector mCorrections;
-  g2o::SparseOptimizer mOptimizer;
+  karto::ScanSolver::IdPoseVector corrections_;
+  g2o::SparseOptimizer optimizer_;
 };

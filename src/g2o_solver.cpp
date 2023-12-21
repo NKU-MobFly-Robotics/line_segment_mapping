@@ -31,63 +31,63 @@
 
 #include "line_segment_mapping/g2o_solver.h"
 
+#include <unordered_set>
+
 #include "g2o/core/block_solver.h"
 #include "g2o/core/factory.h"
 #include "g2o/core/optimization_algorithm_factory.h"
 #include "g2o/core/optimization_algorithm_gauss_newton.h"
+#include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/types/slam2d/types_slam2d.h"
 #include "ros/console.h"
+#include "tf/tf.h"
 
-typedef g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>> SlamBlockSolver;
+using BlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
 
 #ifdef SBA_CHOLMOD
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
-typedef g2o::LinearSolverCholmod<SlamBlockSolver::PoseMatrixType>
-    SlamLinearSolver;
+using LinearSolver = g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>;
 #else
 #include "g2o/solvers/csparse/linear_solver_csparse.h"
-typedef g2o::LinearSolverCSparse<SlamBlockSolver::PoseMatrixType>
-    SlamLinearSolver;
+using LinearSolver = g2o::LinearSolverCSparse<BlockSolver::PoseMatrixType>;
 #endif
 
 G2oSolver::G2oSolver() {
   // Initialize the SparseOptimizer
-  // SlamLinearSolver* linearSolver = new SlamLinearSolver();
-  auto linearSolver = g2o::make_unique<SlamLinearSolver>();
-  linearSolver->setBlockOrdering(false);
-  // SlamBlockSolver* blockSolver = new SlamBlockSolver(linearSolver);
-  g2o::OptimizationAlgorithmGaussNewton* solver =
-      new g2o::OptimizationAlgorithmGaussNewton(
-          g2o::make_unique<SlamBlockSolver>(std::move(linearSolver)));
+  auto linear_solver = std::make_unique<LinearSolver>();
+  linear_solver->setBlockOrdering(false);
+  auto block_solver = std::make_unique<BlockSolver>(std::move(linear_solver));
+  g2o::OptimizationAlgorithmLevenberg* solver =
+      new g2o::OptimizationAlgorithmLevenberg(std::move(block_solver));
 
-  mOptimizer.setAlgorithm(solver);
+  optimizer_.setAlgorithm(solver);
 }
 
 G2oSolver::~G2oSolver() {
   // freeing the graph memory
-  mOptimizer.clear();
+  optimizer_.clear();
 }
 
 void G2oSolver::Clear() {
   // freeing the graph memory
   ROS_INFO("[g2o] Clearing Optimizer...");
-  mCorrections.clear();
+  corrections_.clear();
 }
 
 void G2oSolver::Compute() {
-  mCorrections.clear();
+  corrections_.clear();
 
   // Fix the first node in the graph to hold the map in place
-  g2o::OptimizableGraph::Vertex* first = mOptimizer.vertex(0);
-  if (!first) {
+  g2o::OptimizableGraph::Vertex* first = optimizer_.vertex(0);
+  if (first == nullptr) {
     ROS_ERROR("[g2o] No Node with ID 0 found!");
     return;
   }
   first->setFixed(true);
 
   // Do the graph optimization
-  mOptimizer.initializeOptimization();
-  int iter = mOptimizer.optimize(40);
+  optimizer_.initializeOptimization();
+  int iter = optimizer_.optimize(40);
   if (iter > 0) {
     ROS_INFO("[g2o] Optimization finished after %d iterations.", iter);
   } else {
@@ -96,73 +96,73 @@ void G2oSolver::Compute() {
   }
 
   // Write the result so it can be used by the mapper
-  g2o::SparseOptimizer::VertexContainer nodes = mOptimizer.activeVertices();
-  for (auto iter = nodes.begin(); iter != nodes.end(); ++iter) {
+  const g2o::SparseOptimizer::VertexContainer& nodes =
+      optimizer_.activeVertices();
+  for (auto n = nodes.begin(); n != nodes.end(); ++n) {
     double estimate[3];
-    if ((*iter)->getEstimateData(estimate)) {
+    if ((*n)->getEstimateData(estimate)) {
       karto::Pose2 pose(estimate[0], estimate[1], estimate[2]);
-      mCorrections.emplace_back((*iter)->id(), pose);
+      corrections_.emplace_back((*n)->id(), pose);
     } else {
       ROS_ERROR("[g2o] Could not get estimated pose from Optimizer!");
     }
   }
 }
 
-void G2oSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex) {
-  karto::Pose2 odom = pVertex->GetObject()->GetCorrectedPose();
-  g2o::VertexSE2* poseVertex = new g2o::VertexSE2;
-  poseVertex->setEstimate(
+void G2oSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* vertex) {
+  const karto::Pose2& odom = vertex->GetObject()->GetCorrectedPose();
+  g2o::VertexSE2* pose_vertex = new g2o::VertexSE2();
+  pose_vertex->setEstimate(
       g2o::SE2(odom.GetX(), odom.GetY(), odom.GetHeading()));
-  poseVertex->setId(pVertex->GetObject()->GetUniqueId());
-  mOptimizer.addVertex(poseVertex);
-  ROS_DEBUG("[g2o] Adding node %d.", pVertex->GetObject()->GetUniqueId());
+  pose_vertex->setId(vertex->GetObject()->GetUniqueId());
+  optimizer_.addVertex(pose_vertex);
+  ROS_DEBUG("[g2o] Adding node %d.", vertex->GetObject()->GetUniqueId());
 }
 
-void G2oSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge) {
+void G2oSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* edge) {
   // Create a new edge
-  g2o::EdgeSE2* odometry = new g2o::EdgeSE2;
+  g2o::EdgeSE2* odometry = new g2o::EdgeSE2();
 
   // Set source and target
-  int sourceID = pEdge->GetSource()->GetObject()->GetUniqueId();
-  int targetID = pEdge->GetTarget()->GetObject()->GetUniqueId();
-  odometry->vertices()[0] = mOptimizer.vertex(sourceID);
-  odometry->vertices()[1] = mOptimizer.vertex(targetID);
+  int source_id = edge->GetSource()->GetObject()->GetUniqueId();
+  int target_id = edge->GetTarget()->GetObject()->GetUniqueId();
+  odometry->vertices()[0] = optimizer_.vertex(source_id);
+  odometry->vertices()[1] = optimizer_.vertex(target_id);
   if (odometry->vertices()[0] == nullptr) {
-    ROS_ERROR("[g2o] Source vertex with id %d does not exist!", sourceID);
+    ROS_ERROR("[g2o] Source vertex with id %d does not exist!", source_id);
     delete odometry;
     return;
   }
   if (odometry->vertices()[1] == nullptr) {
-    ROS_ERROR("[g2o] Target vertex with id %d does not exist!", targetID);
+    ROS_ERROR("[g2o] Target vertex with id %d does not exist!", target_id);
     delete odometry;
     return;
   }
 
   // Set the measurement (odometry distance between vertices)
-  karto::LinkInfo* pLinkInfo =
-      dynamic_cast<karto::LinkInfo*>(pEdge->GetLabel());
-  karto::Pose2 diff = pLinkInfo->GetPoseDifference();
+  karto::LinkInfo* link_info = dynamic_cast<karto::LinkInfo*>(edge->GetLabel());
+  karto::Pose2 diff = link_info->GetPoseDifference();
   g2o::SE2 measurement(diff.GetX(), diff.GetY(), diff.GetHeading());
   odometry->setMeasurement(measurement);
 
   // Set the covariance of the measurement
-  karto::Matrix3 precisionMatrix = pLinkInfo->GetCovariance().Inverse();
+  karto::Matrix3 precision_matrix = link_info->GetCovariance().Inverse();
   Eigen::Matrix<double, 3, 3> info;
-  info(0, 0) = precisionMatrix(0, 0);
-  info(0, 1) = info(1, 0) = precisionMatrix(0, 1);
-  info(0, 2) = info(2, 0) = precisionMatrix(0, 2);
-  info(1, 1) = precisionMatrix(1, 1);
-  info(1, 2) = info(2, 1) = precisionMatrix(1, 2);
-  info(2, 2) = precisionMatrix(2, 2);
+  info(0, 0) = precision_matrix(0, 0);
+  info(0, 1) = info(1, 0) = precision_matrix(0, 1);
+  info(0, 2) = info(2, 0) = precision_matrix(0, 2);
+  info(1, 1) = precision_matrix(1, 1);
+  info(1, 2) = info(2, 1) = precision_matrix(1, 2);
+  info(2, 2) = precision_matrix(2, 2);
   odometry->setInformation(info);
 
   // Add the constraint to the optimizer
-  ROS_DEBUG("[g2o] Adding Edge from node %d to node %d.", sourceID, targetID);
-  mOptimizer.addEdge(odometry);
+  ROS_DEBUG("[g2o] Adding Edge from node %d to node %d.", source_id, target_id);
+  optimizer_.addEdge(odometry);
 }
 
 const karto::ScanSolver::IdPoseVector& G2oSolver::GetCorrections() const {
-  return mCorrections;
+  return corrections_;
 }
 
 /**
@@ -170,8 +170,8 @@ const karto::ScanSolver::IdPoseVector& G2oSolver::GetCorrections() const {
  * This function also identifies the loop closure edges and adds them to the
  * loop_closure_edges_ data for further processing
  */
-void G2oSolver::publishGraphVisualization(
-    visualization_msgs::MarkerArray* marray) const {
+void G2oSolver::PublishGraphVisualization(
+    visualization_msgs::MarkerArray* marker_array) {
   // Vertices are round, red spheres
   visualization_msgs::Marker m;
   m.header.frame_id = "map";
@@ -182,6 +182,7 @@ void G2oSolver::publishGraphVisualization(
   m.pose.position.x = 0.0;
   m.pose.position.y = 0.0;
   m.pose.position.z = 0.0;
+  m.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
   m.scale.x = 0.1;
   m.scale.y = 0.1;
   m.scale.z = 0.1;
@@ -199,6 +200,7 @@ void G2oSolver::publishGraphVisualization(
   edge.ns = "karto";
   edge.id = 0;
   edge.type = visualization_msgs::Marker::LINE_STRIP;
+  edge.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
   edge.scale.x = 0.1;
   edge.scale.y = 0.1;
   edge.scale.z = 0.1;
@@ -215,6 +217,7 @@ void G2oSolver::publishGraphVisualization(
   loop_edge.ns = "karto";
   loop_edge.id = 0;
   loop_edge.type = visualization_msgs::Marker::LINE_STRIP;
+  loop_edge.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
   loop_edge.scale.x = 0.1;
   loop_edge.scale.y = 0.1;
   loop_edge.scale.z = 0.1;
@@ -223,13 +226,13 @@ void G2oSolver::publishGraphVisualization(
   loop_edge.color.g = 0.0;
   loop_edge.color.b = 1.0;
 
-  int id = static_cast<int>(marray->markers.size());
+  int id = static_cast<int>(marker_array->markers.size());
   m.action = visualization_msgs::Marker::ADD;
 
-  std::set<int> vertex_ids;
+  std::unordered_set<int> vertex_ids;
   // HyperGraph Edges
-  for (auto edge_it = mOptimizer.edges().begin();
-       edge_it != mOptimizer.edges().end(); ++edge_it) {
+  const auto& edges = optimizer_.edges();
+  for (auto edge_it = edges.begin(); edge_it != edges.end(); ++edge_it) {
     // Is it a unary edge? Need to skip or else die a bad death
     if ((*edge_it)->vertices().size() < 2) {
       continue;
@@ -252,7 +255,7 @@ void G2oSolver::publishGraphVisualization(
       edge.points.push_back(p1);
       edge.points.push_back(p2);
       edge.id = id;
-      marray->markers.push_back(visualization_msgs::Marker(edge));
+      marker_array->markers.push_back(visualization_msgs::Marker(edge));
       id++;
     } else {
       // it's a loop closure
@@ -263,7 +266,7 @@ void G2oSolver::publishGraphVisualization(
 
       loop_edge.color.a = 1.0;
 
-      marray->markers.push_back(visualization_msgs::Marker(loop_edge));
+      marker_array->markers.push_back(visualization_msgs::Marker(loop_edge));
     }
 
     // Check the vertices exist, if not add
@@ -273,7 +276,7 @@ void G2oSolver::publishGraphVisualization(
       m.pose.position.x = p2.x;
       m.pose.position.y = p2.y;
       vertex_ids.insert(v2->id());
-      marray->markers.push_back(visualization_msgs::Marker(m));
+      marker_array->markers.push_back(visualization_msgs::Marker(m));
       id++;
     }
   }
