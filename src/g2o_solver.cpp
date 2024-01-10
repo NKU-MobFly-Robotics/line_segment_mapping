@@ -52,6 +52,8 @@ using LinearSolver = g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>;
 using LinearSolver = g2o::LinearSolverCSparse<BlockSolver::PoseMatrixType>;
 #endif
 
+namespace line_segment_mapping {
+
 G2oSolver::G2oSolver() {
   // Initialize the SparseOptimizer
   auto linear_solver = std::make_unique<LinearSolver>();
@@ -281,3 +283,5 @@ void G2oSolver::PublishGraphVisualization(
     }
   }
 }
+
+}  // namespace line_segment_mapping

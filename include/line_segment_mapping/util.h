@@ -33,4 +33,17 @@
 
 #pragma once
 
+#include <cmath>
+
 #define UNUSED(var) (void)(var)
+
+namespace line_segment_mapping {
+
+static constexpr double kDoubleEpsilon = 1e-6;
+
+inline double point_to_line_distance(double A, double B, double C, double x,
+                                     double y) {
+  return std::abs(A * x + B * y + C) / std::sqrt(A * A + B * B);
+}
+
+}  // namespace line_segment_mapping

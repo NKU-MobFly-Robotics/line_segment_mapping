@@ -55,6 +55,8 @@
 // compute linear index for given map coords
 #define MAP_IDX(sx, i, j) ((sx) * (j) + (i))
 
+namespace line_segment_mapping {
+
 class SlamKarto {
  public:
   SlamKarto();
@@ -104,8 +106,8 @@ class SlamKarto {
   boost::mutex map_to_odom_mutex_;
 
   // Karto bookkeeping
-  std::unique_ptr<karto::LineSegmentMapper> line_segment_mapper_;
-  std::unique_ptr<karto::LineSegmentExtractor> line_segment_extractor_;
+  std::unique_ptr<LineSegmentMapper> line_segment_mapper_;
+  std::unique_ptr<LineSegmentExtractor> line_segment_extractor_;
   std::unique_ptr<karto::Dataset> dataset_;
   std::unique_ptr<G2oSolver> solver_;
 
@@ -181,8 +183,8 @@ SlamKarto::SlamKarto() {
       boost::bind(&SlamKarto::publishLoop, this, transform_publish_period));
 
   // Initialize Karto structures
-  line_segment_mapper_ = std::make_unique<karto::LineSegmentMapper>();
-  line_segment_extractor_ = std::make_unique<karto::LineSegmentExtractor>();
+  line_segment_mapper_ = std::make_unique<LineSegmentMapper>();
+  line_segment_extractor_ = std::make_unique<LineSegmentExtractor>();
   dataset_ = std::make_unique<karto::Dataset>();
 
   // Setting General Parameters from the Parameter Server
@@ -561,9 +563,9 @@ bool SlamKarto::updateMap() {
   }
 
   // Translate to ROS format
-  kt_int32s width = occ_grid->GetWidth();
-  kt_int32s height = occ_grid->GetHeight();
-  karto::Vector2<kt_double> offset =
+  int32_t width = occ_grid->GetWidth();
+  int32_t height = occ_grid->GetHeight();
+  karto::Vector2<double> offset =
       occ_grid->GetCoordinateConverter()->GetOffset();
 
   if (map_.map.info.width != (unsigned int)width ||
@@ -577,10 +579,10 @@ bool SlamKarto::updateMap() {
     map_.map.data.resize(map_.map.info.width * map_.map.info.height);
   }
 
-  for (kt_int32s y = 0; y < height; y++) {
-    for (kt_int32s x = 0; x < width; x++) {
+  for (int32_t y = 0; y < height; y++) {
+    for (int32_t x = 0; x < width; x++) {
       // Getting the value at position x,y
-      kt_int8u value = occ_grid->GetValue(karto::Vector2<kt_int32s>(x, y));
+      uint8_t value = occ_grid->GetValue(karto::Vector2<int32_t>(x, y));
 
       switch (value) {
         case karto::GridStates_Unknown:
@@ -615,7 +617,7 @@ bool SlamKarto::updateMap() {
 }
 
 void SlamKarto::publishLineSegmentMapVisualization() {
-  const karto::LineSegmentPtrHashTable line_segment_hash_table =
+  const LineSegmentPtrHashTable line_segment_hash_table =
       line_segment_mapper_->GetLineSegmentMapManager()->GetLineSegmentMap();
 
   visualization_msgs::Marker line_segment_map_marker;
@@ -634,7 +636,7 @@ void SlamKarto::publishLineSegmentMapVisualization() {
        hash_iter != line_segment_hash_table.end(); ++hash_iter) {
     // if (iter->second->n < 5) continue;
 
-    const karto::LineSegmentPtr merged_line_segment = hash_iter->second;
+    const LineSegmentPtr merged_line_segment = hash_iter->second;
 
     geometry_msgs::Point p_start;
     p_start.x = merged_line_segment->GetStartPoint().GetX();
@@ -660,7 +662,7 @@ bool SlamKarto::addScan(karto::LaserRangeFinder* laser,
   }
 
   // Create a vector of doubles for karto
-  std::vector<kt_double> readings;
+  std::vector<double> readings;
 
   if (lasers_inverted_[scan->header.frame_id]) {
     for (auto it = scan->ranges.rbegin(); it != scan->ranges.rend(); ++it) {
@@ -673,7 +675,7 @@ bool SlamKarto::addScan(karto::LaserRangeFinder* laser,
   }
 
   // create localized range scan
-  karto::LineSegmentPtrVector line_segments;
+  LineSegmentPtrVector line_segments;
   line_segment_extractor_->extract_lines(readings, laser, &line_segments);
 
   if (line_segments.empty()) {
@@ -735,10 +737,12 @@ bool SlamKarto::mapCallback(nav_msgs::GetMap::Request& req,
   return false;
 }
 
+}  // namespace line_segment_mapping
+
 int main(int argc, char** argv) {
   ros::init(argc, argv, "slam_karto");
 
-  SlamKarto kn;
+  line_segment_mapping::SlamKarto kn;
 
   ros::spin();
 

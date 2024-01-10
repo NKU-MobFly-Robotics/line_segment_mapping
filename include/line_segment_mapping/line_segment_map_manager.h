@@ -37,7 +37,7 @@
 
 #include "line_segment_mapping/line_segment_feature.h"
 
-namespace karto {
+namespace line_segment_mapping {
 /**
  * An incremental and consistent line segment mapping module, please refer the
  * following paper for more detail J. Wen, X. Zhang, H. Gao, J. Yuan, Y. Fang,
@@ -109,4 +109,4 @@ class LineSegmentMapManager {
   int m_LineSegmentClustersIndex = 0;     // Index of the line segment cluster
 };
 
-}  // namespace karto
+}  // namespace line_segment_mapping

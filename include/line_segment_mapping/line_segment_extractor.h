@@ -41,9 +41,10 @@
 
 #include "line_segment_mapping/line_segment_feature.h"
 
-namespace karto {
+namespace line_segment_mapping {
+
 typedef struct PointReadings {
-  PointVectorDouble points;
+  karto::PointVectorDouble points;
   std::vector<double> ranges;
   std::vector<double> angles;
   int num;
@@ -83,8 +84,8 @@ class LineSegmentExtractor {
   ~LineSegmentExtractor() = default;
 
  public:
-  void extract_lines(const RangeReadingsVector& point_readings,
-                     const LaserRangeFinder* laser_range_finder,
+  void extract_lines(const karto::RangeReadingsVector& point_readings,
+                     const karto::LaserRangeFinder* laser_range_finder,
                      LineSegmentPtrVector* line_segments);
   // 设置参数
   void set_least_threshold(double least_thresh);
@@ -114,8 +115,8 @@ class LineSegmentExtractor {
   // 判断线段端点是否是有序的
   void is_sequential();
 
-  void range_filtering(const RangeReadingsVector& point_readings,
-                       const LaserRangeFinder* laser_range_finder,
+  void range_filtering(const karto::RangeReadingsVector& point_readings,
+                       const karto::LaserRangeFinder* laser_range_finder,
                        PointReadings* data);
   void process(const PointReadings& data, LineSegmentPtrVector* line_segments);
 
@@ -133,4 +134,4 @@ class LineSegmentExtractor {
   double mid5;
 };
 
-}  // namespace karto
+}  // namespace line_segment_mapping

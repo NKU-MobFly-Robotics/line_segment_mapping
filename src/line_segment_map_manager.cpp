@@ -33,7 +33,8 @@
 
 #include "glog/logging.h"
 
-namespace karto {
+namespace line_segment_mapping {
+
 bool LineSegmentMapManager::NaiveMerge(
     const LineSegmentPtrVector& rLineSegments) {
   bool doUpdate = false;
@@ -296,10 +297,10 @@ void LineSegmentMapManager::GlobalMapAdjustment() {
 
 bool LineSegmentMapManager::CalculateOverlap(
     const LineSegment& prevLineSegment, const LineSegment& currLineSegment) {
-  double headingDeviation = math::NormalizeAngle(currLineSegment.GetHeading() -
-                                                 prevLineSegment.GetHeading());
+  double headingDeviation = karto::math::NormalizeAngle(
+      currLineSegment.GetHeading() - prevLineSegment.GetHeading());
   // The two line segments are not parallel
-  if (fabs(headingDeviation) > math::DegreesToRadians(4.0)) {
+  if (std::abs(headingDeviation) > karto::math::DegreesToRadians(4.0)) {
     return false;
   }
 
@@ -308,7 +309,8 @@ bool LineSegmentMapManager::CalculateOverlap(
   // Considering whether the slope of a straight line exists or not, it is
   // discussed in two cases and finally transformed into a general formula of a
   // straight line
-  if (fabs(fabs(prevLineSegment.GetHeading()) - KT_PI_2) < KT_TOLERANCE) {
+  if (std::abs(std::abs(prevLineSegment.GetHeading()) - M_PI_2) <
+      kDoubleEpsilon) {
     A = 1;
     B = 0;
     C = -(prevLineSegment.GetStartPoint().GetX() +
@@ -327,7 +329,7 @@ bool LineSegmentMapManager::CalculateOverlap(
   double dist2 =
       point_to_line_distance(A, B, C, currLineSegment.GetEndPoint().GetX(),
                              currLineSegment.GetEndPoint().GetY());
-  double dist = math::Maximum(dist1, dist2);
+  double dist = std::max(dist1, dist2);
 
   if (dist > 0.10) {
     return false;
@@ -339,7 +341,8 @@ bool LineSegmentMapManager::CalculateOverlap(
   // 直线M与直线N的交点坐标：x=(B*B*a-A*B*b-A*C)/(A*A+B*B),
   // y=(A*A*b-A*B*a-B*C)/(A*A+B*B)
   double x, y;
-  Vector2<double> prevStartPoint, prevEndPoint, currStartPoint, currEndPoint;
+  karto::Vector2<double> prevStartPoint, prevEndPoint, currStartPoint,
+      currEndPoint;
 
   prevStartPoint.SetX(prevLineSegment.GetStartPoint().GetX());
   prevStartPoint.SetY(prevLineSegment.GetStartPoint().GetY());
@@ -365,13 +368,13 @@ bool LineSegmentMapManager::CalculateOverlap(
   currEndPoint.SetY(y);
 
   // 当前线段起点指向参考线段起点的方向向量
-  Vector2<double> vector1 = currStartPoint - prevStartPoint;
+  karto::Vector2<double> vector1 = currStartPoint - prevStartPoint;
   // 当前线段起点指向参考线段终点的方向向量
-  Vector2<double> vector2 = currStartPoint - prevEndPoint;
+  karto::Vector2<double> vector2 = currStartPoint - prevEndPoint;
   // 当前线段终点指向参考线段起点的方向向量
-  Vector2<double> vector3 = currEndPoint - prevStartPoint;
+  karto::Vector2<double> vector3 = currEndPoint - prevStartPoint;
   // 当前线段终点指向参考线段终点的方向向量
-  Vector2<double> vector4 = currEndPoint - prevEndPoint;
+  karto::Vector2<double> vector4 = currEndPoint - prevEndPoint;
 
   // 说明当前线段的起点落在参考线段的两侧
   if (vector1.GetX() * vector2.GetX() + vector1.GetY() * vector2.GetY() > 0) {
@@ -434,8 +437,8 @@ void LineSegmentMapManager::MapAdjustment(int index) {
 LineSegment* LineSegmentMapManager::MergeLineSegments(
     const LineSegmentVector& rLineSegments) {
   CHECK(!rLineSegments.empty());
-  Vector2<double> directionVector;
-  Vector2<double> centralPoint;
+  karto::Vector2<double> directionVector;
+  karto::Vector2<double> centralPoint;
   int updateRate = 0;
   for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter) {
     directionVector += iter->GetDirectionVector();
@@ -444,17 +447,17 @@ LineSegment* LineSegmentMapManager::MergeLineSegments(
   }
   // 计算线段的单位方向向量
   double vectorLength = directionVector.Length();  // 归一化因子
-  CHECK_GE(vectorLength, KT_TOLERANCE);
+  CHECK_GE(vectorLength, kDoubleEpsilon);
 
   double heading = atan2(directionVector.GetY(), directionVector.GetX());
-  CHECK(math::InRange(heading, -KT_PI, KT_PI));
+  CHECK(karto::math::InRange(heading, -M_PI, M_PI));
 
-  Vector2<double> barycenter =
+  karto::Vector2<double> barycenter =
       centralPoint / static_cast<int>(rLineSegments.size());
 
   double A, B, C;
   // 考虑直线斜率存在与否，分两种情况讨论，最终化为直线的一般式
-  if (fabs(fabs(heading) - KT_PI_2) < KT_TOLERANCE) {
+  if (std::abs(std::abs(heading) - M_PI_2) < kDoubleEpsilon) {
     A = 1;
     B = 0;
     C = -barycenter.GetX();
@@ -464,8 +467,8 @@ LineSegment* LineSegmentMapManager::MergeLineSegments(
     C = barycenter.GetY() - A * barycenter.GetX();
   }
 
-  PointVectorDouble startPointVector, endPointVector;
-  Vector2<double> startPoint, endPoint;
+  karto::PointVectorDouble startPointVector, endPointVector;
+  karto::Vector2<double> startPoint, endPoint;
   for (auto iter = rLineSegments.begin(); iter != rLineSegments.end(); ++iter) {
     startPoint.SetX((B * B * iter->GetStartPoint().GetX() -
                      A * B * iter->GetStartPoint().GetY() - A * C) /
@@ -484,7 +487,7 @@ LineSegment* LineSegmentMapManager::MergeLineSegments(
   }
 
   double maximumDistance = 0;
-  Vector2<double> updatedStartPoint, updatedEndPoint;
+  karto::Vector2<double> updatedStartPoint, updatedEndPoint;
   for (auto iter = startPointVector.begin(); iter != startPointVector.end();
        ++iter) {
     for (auto inner_iter = endPointVector.begin();
@@ -515,4 +518,4 @@ bool LineSegmentMapManager::updateCheck() {
   return true;
 }
 
-}  // namespace karto
+}  // namespace line_segment_mapping

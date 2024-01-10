@@ -38,8 +38,9 @@
 
 #include "line_segment_mapping/line_segment_map_manager.h"
 
-namespace karto {
-class LineSegmentMapper : public Mapper {
+namespace line_segment_mapping {
+
+class LineSegmentMapper : public karto::Mapper {
  public:
   /**
    * Default constructor
@@ -71,8 +72,8 @@ class LineSegmentMapper : public Mapper {
    *
    * @return true if the scan was added successfully, false otherwise
    */
-  virtual kt_bool Process(LocalizedRangeScan* pScan,
-                          const LineSegmentPtrVector& rLineSegments);
+  virtual bool Process(karto::LocalizedRangeScan* pScan,
+                       const LineSegmentPtrVector& rLineSegments);
 
   virtual LineSegmentMapManager* GetLineSegmentMapManager() const {
     return m_pLineSegmentMapManager.get();
@@ -86,8 +87,8 @@ class LineSegmentMapper : public Mapper {
    * @return true if the scan is "sufficiently far" from the last scan added or
    * the scan is the first scan to be added
    */
-  kt_bool HasMovedEnough(LocalizedRangeScan* pScan,
-                         LocalizedRangeScan* pLastScan);
+  bool HasMovedEnough(karto::LocalizedRangeScan* pScan,
+                      karto::LocalizedRangeScan* pLastScan);
 
  private:
   /**
@@ -106,4 +107,4 @@ class LineSegmentMapper : public Mapper {
   bool m_Initialized = false;
 };
 
-}  // namespace karto
+}  // namespace line_segment_mapping

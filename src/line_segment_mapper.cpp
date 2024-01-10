@@ -33,7 +33,7 @@
 
 #include <chrono>  // NOLINT
 
-namespace karto {
+namespace line_segment_mapping {
 /**
  * Default constructor
  */
@@ -45,8 +45,8 @@ LineSegmentMapper::LineSegmentMapper() : Mapper("Mapper") {}
 LineSegmentMapper::LineSegmentMapper(const std::string& rName)
     : Mapper(rName) {}
 
-kt_bool LineSegmentMapper::Process(LocalizedRangeScan* pScan,
-                                   const LineSegmentPtrVector& rLineSegments) {
+bool LineSegmentMapper::Process(karto::LocalizedRangeScan* pScan,
+                                const LineSegmentPtrVector& rLineSegments) {
   if (pScan != nullptr) {
     karto::LaserRangeFinder* pLaserRangeFinder = pScan->GetLaserRangeFinder();
 
@@ -67,13 +67,13 @@ kt_bool LineSegmentMapper::Process(LocalizedRangeScan* pScan,
 
     // get last scan
     // 如果这一帧是第一帧，则pLastScan返回nullptr
-    LocalizedRangeScan* pLastScan =
+    karto::LocalizedRangeScan* pLastScan =
         GetMapperSensorManager()->GetLastScan(pScan->GetSensorName());
 
     // update scans corrected pose based on last correction
     if (pLastScan != nullptr) {
-      Transform lastTransform(pLastScan->GetOdometricPose(),
-                              pLastScan->GetCorrectedPose());
+      karto::Transform lastTransform(pLastScan->GetOdometricPose(),
+                                     pLastScan->GetCorrectedPose());
       // 根据码盘数据定位
       pScan->SetCorrectedPose(
           lastTransform.TransformPose(pScan->GetOdometricPose()));
@@ -85,12 +85,12 @@ kt_bool LineSegmentMapper::Process(LocalizedRangeScan* pScan,
       return false;
     }
 
-    Matrix3 covariance;
+    karto::Matrix3 covariance;
     covariance.SetToIdentity();
 
     // correct scan (if not first scan)
     if (getParamUseScanMatching() && pLastScan != nullptr) {
-      Pose2 bestPose;
+      karto::Pose2 bestPose;
       // 核心一：扫描匹配
       GetSequentialScanMatcher()->MatchScan(
           pScan,
@@ -110,9 +110,9 @@ kt_bool LineSegmentMapper::Process(LocalizedRangeScan* pScan,
       GetMapperSensorManager()->AddRunningScan(pScan);
 
       if (getParamDoLoopClosing()) {
-        std::vector<Name> deviceNames =
+        std::vector<karto::Name> deviceNames =
             GetMapperSensorManager()->GetSensorNames();
-        const_forEach(std::vector<Name>, &deviceNames) {
+        const_forEach(std::vector<karto::Name>, &deviceNames) {
           // 核心二：回环检测
           bool update = GetGraph()->TryCloseLoop(pScan, *iter);
           if (update) {
@@ -160,38 +160,39 @@ kt_bool LineSegmentMapper::Process(LocalizedRangeScan* pScan,
  * @param pLastScan
  * @return true if the scans are sufficiently far
  */
-kt_bool LineSegmentMapper::HasMovedEnough(LocalizedRangeScan* pScan,
-                                          LocalizedRangeScan* pLastScan) {
+bool LineSegmentMapper::HasMovedEnough(karto::LocalizedRangeScan* pScan,
+                                       karto::LocalizedRangeScan* pLastScan) {
   // test if first scan
   if (pLastScan == nullptr) {
     return true;
   }
 
   // test if enough time has passed
-  kt_double timeInterval = pScan->GetTime() - pLastScan->GetTime();
+  double timeInterval = pScan->GetTime() - pLastScan->GetTime();
   if (timeInterval >= getParamMinimumTimeInterval()) {
     return true;
   }
 
-  Pose2 lastScannerPose = pLastScan->GetSensorAt(pLastScan->GetOdometricPose());
-  Pose2 scannerPose = pScan->GetSensorAt(pScan->GetOdometricPose());
+  karto::Pose2 lastScannerPose =
+      pLastScan->GetSensorAt(pLastScan->GetOdometricPose());
+  karto::Pose2 scannerPose = pScan->GetSensorAt(pScan->GetOdometricPose());
 
   // test if we have turned enough
-  kt_double deltaHeading = math::NormalizeAngle(scannerPose.GetHeading() -
-                                                lastScannerPose.GetHeading());
-  if (fabs(deltaHeading) >= getParamMinimumTravelHeading()) {
+  double deltaHeading = karto::math::NormalizeAngle(
+      scannerPose.GetHeading() - lastScannerPose.GetHeading());
+  if (std::abs(deltaHeading) >= getParamMinimumTravelHeading()) {
     return true;
   }
 
   // test if we have moved enough
-  kt_double squaredTravelDistance =
+  double squaredTravelDistance =
       lastScannerPose.GetPosition().SquaredDistance(scannerPose.GetPosition());
   if (squaredTravelDistance >=
-      math::Square(getParamMinimumTravelDistance()) - KT_TOLERANCE) {
+      karto::math::Square(getParamMinimumTravelDistance()) - kDoubleEpsilon) {
     return true;
   }
 
   return false;
 }
 
-}  // namespace karto
+}  // namespace line_segment_mapping

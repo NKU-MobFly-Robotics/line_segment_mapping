@@ -38,18 +38,16 @@
 #include "glog/logging.h"
 #include "open_karto/Karto.h"
 
-namespace karto {
-inline double point_to_line_distance(double A, double B, double C, double x,
-                                     double y) {
-  return fabs(A * x + B * y + C) / sqrt(A * A + B * B);
-}
+#include "line_segment_mapping/util.h"
+
+namespace line_segment_mapping {
 
 class LineSegment {
  public:
   LineSegment() {}
 
-  LineSegment(const Vector2<double>& startPoint,
-              const Vector2<double>& endPoint) {
+  LineSegment(const karto::Vector2<double>& startPoint,
+              const karto::Vector2<double>& endPoint) {
     m_StartPoint = startPoint;
     m_EndPoint = endPoint;
     m_Barycenter = (m_StartPoint + m_EndPoint) / 2;
@@ -58,17 +56,17 @@ class LineSegment {
           !std::isnan(m_DirectionVector.GetY()));  // 排除NaN值的情况
 
     m_Length = m_DirectionVector.Length();
-    CHECK_GE(m_Length, KT_TOLERANCE);
+    CHECK_GE(m_Length, kDoubleEpsilon);
 
     m_Heading = atan2(m_DirectionVector.GetY(), m_DirectionVector.GetX());
-    CHECK(math::InRange(m_Heading, -KT_PI, KT_PI));
+    CHECK(karto::math::InRange(m_Heading, -M_PI, M_PI));
     m_UpdateTimes = 1;
 
     double A = m_EndPoint.GetY() - m_StartPoint.GetY();
     double B = m_StartPoint.GetX() - m_EndPoint.GetX();
     double C = m_EndPoint.GetX() * m_StartPoint.GetY() -
                m_StartPoint.GetX() * m_EndPoint.GetY();
-    m_Role = fabs(C) / sqrt(A * A + B * B);
+    m_Role = std::abs(C) / std::sqrt(A * A + B * B);
 
     double x = -A * C / (A * A + B * B);
     double y = -B * C / (A * A + B * B);
@@ -96,13 +94,13 @@ class LineSegment {
   virtual ~LineSegment() { m_pScan = nullptr; }
 
  public:
-  const Vector2<double>& GetStartPoint() const { return m_StartPoint; }
+  const karto::Vector2<double>& GetStartPoint() const { return m_StartPoint; }
 
-  const Vector2<double>& GetEndPoint() const { return m_EndPoint; }
+  const karto::Vector2<double>& GetEndPoint() const { return m_EndPoint; }
 
-  const Vector2<double>& GetBarycenter() const { return m_Barycenter; }
+  const karto::Vector2<double>& GetBarycenter() const { return m_Barycenter; }
 
-  const Vector2<double>& GetDirectionVector() const {
+  const karto::Vector2<double>& GetDirectionVector() const {
     return m_DirectionVector;
   }
 
@@ -118,9 +116,9 @@ class LineSegment {
 
   double GetPhi() const { return m_Phi; }
 
-  void SetScan(LocalizedRangeScan* pScan) { m_pScan = pScan; }
+  void SetScan(karto::LocalizedRangeScan* pScan) { m_pScan = pScan; }
 
-  const LocalizedRangeScan* GetScan() const { return m_pScan; }
+  const karto::LocalizedRangeScan* GetScan() const { return m_pScan; }
 
   void SetLineSegmentClusterIndex(int lineSegmentClusterIndex) {
     m_ClusterIndex = lineSegmentClusterIndex;
@@ -129,11 +127,11 @@ class LineSegment {
   const int& GetLineSegmentClusterIndex() const { return m_ClusterIndex; }
 
   LineSegment GetGlobalLineSegments() const {
-    Pose2 scanPose = m_pScan->GetSensorPose();
-    double cosine = cos(scanPose.GetHeading());
-    double sine = sin(scanPose.GetHeading());
+    karto::Pose2 scanPose = m_pScan->GetSensorPose();
+    double cosine = std::cos(scanPose.GetHeading());
+    double sine = std::sin(scanPose.GetHeading());
 
-    Vector2<double> startPoint, endPoint;
+    karto::Vector2<double> startPoint, endPoint;
 
     startPoint.SetX(m_StartPoint.GetX() * cosine - m_StartPoint.GetY() * sine +
                     scanPose.GetX());
@@ -149,15 +147,15 @@ class LineSegment {
   }
 
  private:
-  Vector2<double> m_StartPoint;
-  Vector2<double> m_EndPoint;
+  karto::Vector2<double> m_StartPoint;
+  karto::Vector2<double> m_EndPoint;
 
   double m_Heading;  // 线段方向
   double m_Length;
-  Vector2<double> m_Barycenter;       // 线段的中心点
-  Vector2<double> m_DirectionVector;  // 单位方向向量
+  karto::Vector2<double> m_Barycenter;       // 线段的中心点
+  karto::Vector2<double> m_DirectionVector;  // 单位方向向量
 
-  const LocalizedRangeScan* m_pScan;  // 该线段关联的激光扫描
+  const karto::LocalizedRangeScan* m_pScan;  // 该线段关联的激光扫描
   int m_ClusterIndex;
 
   int m_UpdateTimes;  // 线段被更新的次数，初始为1
@@ -172,4 +170,4 @@ typedef std::unordered_map<int, LineSegmentPtr> LineSegmentPtrHashTable;
 typedef std::unordered_map<int, LineSegmentPtrVector>
     LineSegmentPtrVectorHashTable;
 
-}  // namespace karto
+}  // namespace line_segment_mapping

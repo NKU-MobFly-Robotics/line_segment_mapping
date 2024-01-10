@@ -33,7 +33,7 @@
 
 #include "glog/logging.h"
 
-namespace karto {
+namespace line_segment_mapping {
 // 构造函数
 LineSegmentExtractor::LineSegmentExtractor() { load_parameters(); }
 
@@ -72,8 +72,8 @@ void LineSegmentExtractor::set_max_line_gap(double max_line_gap) {
 }
 
 void LineSegmentExtractor::range_filtering(
-    const RangeReadingsVector& point_readings,
-    const LaserRangeFinder* laser_range_finder, PointReadings* data) {
+    const karto::RangeReadingsVector& point_readings,
+    const karto::LaserRangeFinder* laser_range_finder, PointReadings* data) {
   double range_thr = laser_range_finder->GetRangeThreshold();
   double angle_min = laser_range_finder->GetMinimumAngle();
   double range_min = laser_range_finder->GetMinimumRange();
@@ -91,11 +91,11 @@ void LineSegmentExtractor::range_filtering(
     double range = point_readings[i];
     double angle = angle_min + i * angle_increment;
 
-    if (!math::InRange(range, range_min, range_thr)) {
+    if (!karto::math::InRange(range, range_min, range_thr)) {
       continue;
     }
 
-    data->points.emplace_back(range * cos(angle), range * sin(angle));
+    data->points.emplace_back(range * std::cos(angle), range * std::sin(angle));
     data->ranges.push_back(range);
     data->angles.push_back(angle);
     data->num++;
@@ -103,8 +103,8 @@ void LineSegmentExtractor::range_filtering(
 }
 
 void LineSegmentExtractor::extract_lines(
-    const RangeReadingsVector& point_readings,
-    const LaserRangeFinder* laser_range_finder,
+    const karto::RangeReadingsVector& point_readings,
+    const karto::LaserRangeFinder* laser_range_finder,
     LineSegmentPtrVector* line_segments) {
   CHECK_NOTNULL(line_segments);
   PointReadings data;
@@ -158,7 +158,7 @@ least LineSegmentExtractor::least_square(int start, int end, int firstfit,
     temp.b = 0;
     temp.c = mid1 / n;
   } else {
-    temp.a = (-w2 + sqrt(w2 * w2 - 4 * w1 * w3)) / 2.0 / w1;
+    temp.a = (-w2 + std::sqrt(w2 * w2 - 4 * w1 * w3)) / 2.0 / w1;
     temp.b = -1;
     temp.c = (mid2 - temp.a * mid1) / n;
   }
@@ -180,7 +180,7 @@ bool LineSegmentExtractor::detect_line(int start, int num,
   double dist = 0.0;
   int k = 0;
   // 预测下一点位置
-  Vector2<double> m_pn;
+  karto::Vector2<double> m_pn;
 
   // 下一点，y = kp*x;
   double kp = 0;
@@ -195,7 +195,7 @@ bool LineSegmentExtractor::detect_line(int start, int num,
     }
 
     theta = data.angles[k];
-    if (fabs(fabs(theta) - KT_PI_2) < KT_TOLERANCE) {
+    if (std::abs(std::abs(theta) - M_PI_2) < kDoubleEpsilon) {
       m_pn.SetX(0);
       m_pn.SetY(m_least.c);
     } else {
@@ -346,10 +346,10 @@ void LineSegmentExtractor::clean_line(const PointReadings& data) {
         theta_one_ = atan(m_line[p].a);
         theta_two_ = atan(m_line[q].a);
 
-        theta_d_ = fabs(theta_one_ - theta_two_);
+        theta_d_ = std::abs(theta_one_ - theta_two_);
 
-        if ((theta_d_ < 0.1) || (theta_d_ > (KT_PI - 0.1))) {
-          int _left = math::Minimum(m_line[p].left, m_line[q].left);
+        if ((theta_d_ < 0.1) || (theta_d_ > (M_PI - 0.1))) {
+          int _left = std::min(m_line[p].left, m_line[q].left);
 
           least m_temp = least_square(_left, m_line[q].right, 1, data);
 
@@ -428,8 +428,8 @@ void LineSegmentExtractor::is_sequential() {
 
 void LineSegmentExtractor::generate(const PointReadings& data,
                                     LineSegmentPtrVector* line_segments) {
-  Vector2<double> endpoint1;
-  Vector2<double> endpoint2;
+  karto::Vector2<double> endpoint1;
+  karto::Vector2<double> endpoint2;
   line_segments->clear();
 
   int m = 0, n = 0;
@@ -499,4 +499,4 @@ void LineSegmentExtractor::process(const PointReadings& data,
   generate(data, line_segments);
 }
 
-}  // namespace karto
+}  // namespace line_segment_mapping

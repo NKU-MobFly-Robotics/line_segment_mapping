@@ -35,6 +35,8 @@
 #include "open_karto/Mapper.h"
 #include "visualization_msgs/MarkerArray.h"
 
+namespace line_segment_mapping {
+
 class G2oSolver : public karto::ScanSolver {
  public:
   G2oSolver();
@@ -54,3 +56,5 @@ class G2oSolver : public karto::ScanSolver {
   karto::ScanSolver::IdPoseVector corrections_;
   g2o::SparseOptimizer optimizer_;
 };
+
+}  // namespace line_segment_mapping
