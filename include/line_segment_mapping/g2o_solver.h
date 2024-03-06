@@ -42,7 +42,6 @@ class G2oSolver : public karto::ScanSolver {
   G2oSolver();
   ~G2oSolver() override;
 
- public:
   void Clear() override;
   void Compute() override;
   const karto::ScanSolver::IdPoseVector& GetCorrections() const override;
