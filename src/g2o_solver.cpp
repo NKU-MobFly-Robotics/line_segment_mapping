@@ -38,21 +38,18 @@
 #include "g2o/core/optimization_algorithm_factory.h"
 #include "g2o/core/optimization_algorithm_gauss_newton.h"
 #include "g2o/core/optimization_algorithm_levenberg.h"
+#include "g2o/solvers/csparse/linear_solver_csparse.h"
 #include "g2o/types/slam2d/types_slam2d.h"
 #include "ros/console.h"
 #include "tf/tf.h"
 
+namespace line_segment_mapping {
+
+// Typedef for the block solver utilized for optimization
 using BlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
 
-#ifdef SBA_CHOLMOD
-#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
-using LinearSolver = g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>;
-#else
-#include "g2o/solvers/csparse/linear_solver_csparse.h"
+// Typedef for the linear solver utilized for optimization
 using LinearSolver = g2o::LinearSolverCSparse<BlockSolver::PoseMatrixType>;
-#endif
-
-namespace line_segment_mapping {
 
 G2oSolver::G2oSolver() {
   // Initialize the SparseOptimizer
